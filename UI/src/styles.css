@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos base do dashboard */
+.card {
+  @apply bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg;
+}
+.kpi {
+  @apply text-2xl font-semibold;
+}
+.grid-cards {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
+}

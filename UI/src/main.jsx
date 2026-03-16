@@ -1,0 +1,54 @@
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+
+import "./styles.css";
+import "./lib/api";
+
+import ProtectedRoute from "./components/ProtectedRoute";
+import AppLayout from "./components/AppLayout";
+
+import Tenants from "./pages/Tenants";
+import Customer from "./pages/Customer";
+import Alerts from "./pages/Alerts";
+import Login from "./pages/Login";
+import GlobalUsers from "./pages/GlobalUsers";
+import TenantUsers from "./pages/TenantUsers";
+import ChangePassword from "./pages/ChangePassword";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import Sessions from "./pages/Sessions";
+import CreateTenant from "./pages/CreateTenant";
+import TelemetryTest from "./pages/TelemetryTest";
+
+const wrap = (page) => (
+  <ProtectedRoute>
+    <AppLayout>{page}</AppLayout>
+  </ProtectedRoute>
+);
+
+const router = createBrowserRouter([
+  // Públicas
+  { path: "/login", element: <Login /> },
+  { path: "/forgot-password", element: <ForgotPassword /> },
+  { path: "/reset-password", element: <ResetPassword /> },
+
+  // Protegidas
+  { path: "/", element: wrap(<Tenants />) },
+  { path: "/users", element: wrap(<GlobalUsers />) },
+  { path: "/sessions", element: wrap(<Sessions />) },
+  { path: "/change-password", element: wrap(<ChangePassword />) },
+  { path: "/create-tenant", element: wrap(<CreateTenant />) },
+
+  { path: "/telemetry-test", element: wrap(<TelemetryTest />) },
+
+  { path: "/tenant/:tenantID", element: wrap(<Customer />) },
+  { path: "/tenant/:tenantID/users", element: wrap(<TenantUsers />) },
+  { path: "/tenant/:tenantID/alerts", element: wrap(<Alerts />) }
+]);
+
+createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <RouterProvider router={router} />
+  </React.StrictMode>
+);

@@ -1,0 +1,12 @@
+---
+# playbook.yml
+# - Execução de rotinas de remediação (exemplo: restart de serviço)
+# - Integrar com a Central via um runner; inventory dinâmico por tenant.
+
+- hosts: target
+  become: yes
+  tasks:
+    - name: Reiniciar serviço web
+      service:
+        name: nginx
+        state: restarted

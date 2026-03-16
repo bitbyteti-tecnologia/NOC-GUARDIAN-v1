@@ -1,0 +1,27 @@
+#!/bin/sh
+set -e
+
+# User dedicado
+if ! id nocguardian >/dev/null 2>&1; then
+  useradd --system --no-create-home --shell /usr/sbin/nologin nocguardian
+fi
+
+mkdir -p /etc/nocguardian
+if [ ! -f /etc/nocguardian/agent.yml ]; then
+  cat > /etc/nocguardian/agent.yml <<EOC
+# NOC Guardian Agent (Linux)
+server_url: https://nocguardian.bitbyteti.tec.br
+tenant_id: REPLACE_TENANT_ID
+# agent_id será preenchido automaticamente na primeira execução
+EOC
+fi
+
+# ✅ Permite o agente persistir agent_id
+chown nocguardian:nocguardian /etc/nocguardian/agent.yml || true
+chmod 600 /etc/nocguardian/agent.yml || true
+
+systemctl daemon-reload || true
+systemctl enable nocguardian-agent.service || true
+systemctl restart nocguardian-agent.service || true
+
+exit 0

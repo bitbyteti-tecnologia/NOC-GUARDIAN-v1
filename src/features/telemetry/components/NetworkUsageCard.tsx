@@ -1,0 +1,90 @@
+import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { NetworkPoint } from "../models";
+import { formatBps } from "../format";
+
+function toChart(series?: NetworkPoint[]) {
+  if (!series?.length) return [];
+  return series
+    .slice()
+    .sort((a, b) => a.ts - b.ts)
+    .map((p) => ({
+      ts: p.ts,
+      rxBps: p.rxBps ?? 0,
+      txBps: p.txBps ?? 0,
+    }));
+}
+
+function tickTime(ts: number) {
+  const d = new Date(ts);
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+export function NetworkUsageCard({
+  current,
+  series,
+}: {
+  current?: { rxBps?: number; txBps?: number; totalBps?: number };
+  series?: NetworkPoint[];
+}) {
+  const data = toChart(series);
+
+  return (
+    <div className="rounded-2xl bg-slate-900/60 p-4 shadow-lg ring-1 ring-white/10">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold tracking-wide text-slate-100">[2] REDE (bytes/s)</h3>
+      </div>
+
+      <div className="h-56 w-full rounded-xl bg-slate-950/40 p-2 ring-1 ring-white/5">
+        {data.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-sm text-slate-400">Sem série de rede</div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="rxFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#60a5fa" stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id="txFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#34d399" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#34d399" stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
+
+              <CartesianGrid stroke="rgba(148,163,184,0.18)" strokeDasharray="3 3" />
+              <XAxis
+                dataKey="ts"
+                tickFormatter={tickTime}
+                tick={{ fill: "rgba(226,232,240,0.7)", fontSize: 11 }}
+                axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+              />
+              <YAxis
+                tickFormatter={(v) => (v >= 1024 * 1024 ? `${(v / (1024 * 1024)).toFixed(0)}MB/s` : "")}
+                tick={{ fill: "rgba(226,232,240,0.7)", fontSize: 11 }}
+                axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+              />
+              <Tooltip
+                contentStyle={{ background: "rgba(2,6,23,0.95)", border: "1px solid rgba(255,255,255,0.1)" }}
+                labelFormatter={(v) => tickTime(Number(v))}
+                formatter={(v: any, name) => [formatBps(Number(v)), name === "rxBps" ? "RX" : "TX"]}
+              />
+              <Legend
+                formatter={(v) => (v === "rxBps" ? "RX (Entrada)" : "TX (Saída)")}
+                wrapperStyle={{ color: "rgba(226,232,240,0.75)", fontSize: 12 }}
+              />
+
+              <Area type="monotone" dataKey="rxBps" stroke="#60a5fa" fill="url(#rxFill)" strokeWidth={2} />
+              <Area type="monotone" dataKey="txBps" stroke="#34d399" fill="url(#txFill)" strokeWidth={2} />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-slate-200">
+        <div>Atual: <span className="text-sky-300">RX</span>: {formatBps(current?.rxBps)} ↓</div>
+        <div><span className="text-emerald-300">TX</span>: {formatBps(current?.txBps)} ↑</div>
+        <div>Total: <span className="text-slate-100 font-semibold">{formatBps(current?.totalBps)}</span> Σ</div>
+      </div>
+    </div>
+  );
+}

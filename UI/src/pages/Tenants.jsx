@@ -1,0 +1,203 @@
+// Tenants.jsx
+// - Dashboard Multi-Tenant: mostra SOMENTE os cards dos clientes.
+// - Inclui um card fixo "+ Novo Cliente" -> /create-tenant
+// - Suporta highlight do card recém-criado via query param:
+//     /?highlight=<tenantID>
+//   => rola até o card e destaca com borda/efeito.
+// - Filtro: "Mostrar somente ativos" (default ligado)
+//   Ativo = total_hosts > 0 (via /dashboard/summary)
+
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import api from "../lib/api";
+
+export default function Tenants() {
+  const [tenants, setTenants] = useState([]);
+  const [summaries, setSummaries] = useState({}); // { [tenantId]: {total_hosts, online, offline, ...} }
+  const [onlyActive, setOnlyActive] = useState(true);
+  const [loadingSummaries, setLoadingSummaries] = useState(false);
+
+  const [searchParams] = useSearchParams();
+  const highlight = searchParams.get("highlight");
+
+  async function loadTenants() {
+    try {
+      const r = await api.get("/api/v1/tenants");
+      setTenants(r.data || []);
+    } catch {
+      setTenants([]);
+    }
+  }
+
+  async function loadSummaries(list) {
+    if (!Array.isArray(list) || list.length === 0) {
+      setSummaries({});
+      return;
+    }
+
+    setLoadingSummaries(true);
+
+    try {
+      // Busca /dashboard/summary para cada tenant em paralelo
+      const results = await Promise.allSettled(
+        list.map(async (t) => {
+          const res = await api.get(`/api/v1/tenants/${t.id}/dashboard/summary`);
+          return [t.id, res.data];
+        })
+      );
+
+      const map = {};
+      for (const it of results) {
+        if (it.status === "fulfilled") {
+          const [id, summary] = it.value;
+          map[id] = summary;
+        }
+      }
+      setSummaries(map);
+    } finally {
+      setLoadingSummaries(false);
+    }
+  }
+
+  useEffect(() => {
+    loadTenants();
+  }, []);
+
+  useEffect(() => {
+    loadSummaries(tenants);
+  }, [tenants]);
+
+  // Se houver highlight, rola e destaca
+  useEffect(() => {
+    if (!highlight) return;
+    const id = setTimeout(() => {
+      const el = document.getElementById(`tenant-card-${highlight}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 250);
+    return () => clearTimeout(id);
+  }, [highlight, tenants, summaries]);
+
+  const filteredTenants = useMemo(() => {
+    if (!onlyActive) return tenants;
+
+    return tenants.filter((t) => {
+      // Se tem highlight, sempre mostra, mesmo se "inativo" (evita sumir após criar)
+      if (highlight && t.id === highlight) return true;
+
+      const s = summaries[t.id];
+
+      // Se ainda não carregou summary, mantém por enquanto (evita esconder por “race”)
+      if (!s) return true;
+
+      // Regra de ativo: total_hosts > 0
+      return (s.total_hosts ?? 0) > 0;
+
+      // Alternativa mais rígida:
+      // return (s.online ?? 0) > 0;
+    });
+  }, [tenants, summaries, onlyActive, highlight]);
+
+  function badgeForTenant(t) {
+    const s = summaries[t.id];
+    const total = s?.total_hosts ?? null;
+    const online = s?.online ?? null;
+
+    // Enquanto não carregou summary
+    if (total === null || online === null) {
+      return { label: "Carregando", cls: "bg-slate-800 text-slate-300" };
+    }
+
+    if (online > 0) {
+      return { label: "Ativo", cls: "bg-emerald-900 text-emerald-300" };
+    }
+
+    if (total > 0 && online === 0) {
+      return { label: "Sem hosts online", cls: "bg-amber-900 text-amber-300" };
+    }
+
+    return { label: "Vazio", cls: "bg-slate-800 text-slate-300" };
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <h1 className="text-3xl font-bold">NOC - Guardian (Multi-Tenant)</h1>
+
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={onlyActive}
+              onChange={(e) => setOnlyActive(e.target.checked)}
+            />
+            Mostrar somente ativos
+          </label>
+
+          {loadingSummaries && (
+            <span className="text-xs text-slate-400">Atualizando status...</span>
+          )}
+        </div>
+      </div>
+
+      {/* Grid de cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Card fixo: + Novo Cliente */}
+        <Link
+          to="/create-tenant"
+          className="card hover:brightness-110 transition border-dashed border-2 border-slate-700"
+          title="Criar novo cliente (tenant)"
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">+ Novo Cliente</h2>
+            <span className="px-3 py-1 rounded-full bg-sky-900 text-sky-300 text-sm">
+              Criar
+            </span>
+          </div>
+          <div className="text-sm text-slate-400 mt-2">
+            Inicia o processo: Tenant + Banco isolado + Migrações Timescale.
+          </div>
+        </Link>
+
+        {/* Cards dos clientes (Tenants) */}
+        {filteredTenants.map((t) => {
+          const isHighlight = highlight === t.id;
+          const badge = badgeForTenant(t);
+
+          return (
+            <Link
+              key={t.id}
+              id={`tenant-card-${t.id}`}
+              to={`/tenant/${t.id}`}
+              className={[
+                "card hover:brightness-110 transition",
+                isHighlight ? "ring-2 ring-sky-500 border-sky-500" : "",
+              ].join(" ")}
+              title="Abrir dashboard do cliente"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-xl font-semibold truncate">{t.name}</h2>
+                <span className={`px-3 py-1 rounded-full text-sm ${badge.cls}`}>
+                  {badge.label}
+                </span>
+              </div>
+
+              <div className="text-sm text-slate-400 mt-2">DB: {t.db_name}</div>
+
+              {summaries[t.id] && (
+                <div className="text-xs text-slate-500 mt-2">
+                  Hosts: <b className="text-slate-300">{summaries[t.id].total_hosts ?? "-"}</b>{" "}
+                  | Online: <b className="text-slate-300">{summaries[t.id].online ?? "-"}</b>{" "}
+                  | Offline: <b className="text-slate-300">{summaries[t.id].offline ?? "-"}</b>
+                </div>
+              )}
+            </Link>
+          );
+        })}
+
+        {filteredTenants.length === 0 && (
+          <div className="text-slate-400">Nenhum cliente encontrado.</div>
+        )}
+      </div>
+    </div>
+  );
+}
