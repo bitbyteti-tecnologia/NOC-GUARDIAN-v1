@@ -42,7 +42,15 @@ export default function Topbar() {
             ☰
           </button>
 
-          <div className="font-bold text-lg">NOC Guardian</div>
+          <Link to="/" className="flex items-center gap-3 group">
+            <img 
+              src="/logo.png" 
+              alt="Logo" 
+              className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+            <div className="font-bold text-lg hidden sm:block tracking-tight text-white italic">NOC Guardian</div>
+          </Link>
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-2 ml-4">
