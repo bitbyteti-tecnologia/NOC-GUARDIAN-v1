@@ -44,7 +44,7 @@ export default function Topbar() {
 
           <Link to="/" className="flex items-center gap-3 group">
             <img 
-              src="/logo.png" 
+              src="/Logo NOC - Guardian-01-Transparente.png" 
               alt="Logo" 
               className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
               onError={(e) => { e.target.style.display = 'none'; }}

@@ -45,7 +45,7 @@ export default function Login() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-slate-100">
         <div className="mb-8 animate-pulse">
           <img 
-            src="/logo.png" 
+            src="/Logo NOC - Guardian-01-Transparente.png" 
             alt="NOC Guardian" 
             className="h-32 object-contain"
             onError={(e) => { e.target.src = "https://img.freepik.com/free-vector/magnifying-glass-with-world-globe_1308-129715.jpg"; }} 
@@ -69,7 +69,7 @@ export default function Login() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-slate-100 p-4">
       <div className="mb-8">
         <img 
-          src="/logo.png" 
+          src="/Logo NOC - Guardian-01-Transparente.png" 
           alt="NOC Guardian" 
           className="h-24 object-contain"
           onError={(e) => { e.target.style.display = 'none'; }}
