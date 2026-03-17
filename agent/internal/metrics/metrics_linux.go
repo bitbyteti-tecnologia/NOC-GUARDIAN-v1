@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"syscall"
@@ -22,6 +23,8 @@ type Snapshot struct {
 
 	MemTotalBytes float64
 	MemUsedBytes  float64
+
+	Services map[string]string
 
 	HasSys bool
 	System SystemInfo
@@ -162,6 +165,13 @@ func Collect(diskPath string) (Snapshot, error) {
 
 	sys, hasSys := collectSystemInfo()
 
+	// Monitorar serviços específicos
+	services := make(map[string]string)
+	checkServices := []string{"docker", "nginx", "postgresql", "central", "dashboard"}
+	for _, s := range checkServices {
+		services[s] = checkServiceStatus(s)
+	}
+
 	return Snapshot{
 		TS:            time.Now().UTC(),
 		CPUPercent:    cpu,
@@ -170,9 +180,20 @@ func Collect(diskPath string) (Snapshot, error) {
 		MemUsedBytes:  usedBytes,
 		DiskUsedPct:   disk,
 		DiskPath:      diskPath,
+		Services:      services,
 		HasSys:        hasSys,
 		System:        sys,
 	}, nil
+}
+
+func checkServiceStatus(name string) string {
+	// Tenta via systemctl
+	cmd := exec.Command("systemctl", "is-active", name)
+	out, err := cmd.Output()
+	if err == nil {
+		return strings.TrimSpace(string(out))
+	}
+	return "inactive"
 }
 
 func memInfo() (pct float64, total float64, used float64, err error) {

@@ -59,37 +59,49 @@ export default function CpuExtraInfo({ tenantID, deviceID }) {
   const kthr = pick(latest, "kthread_count");
   const run = pick(latest, "running_procs");
 
+  // Serviços
+  const services = [
+    { name: "Docker", val: pick(latest, "service_docker_status") },
+    { name: "Nginx", val: pick(latest, "service_nginx_status") },
+    { name: "Postgres", val: pick(latest, "service_postgresql_status") },
+    { name: "Central", val: pick(latest, "service_central_status") },
+    { name: "Dash", val: pick(latest, "service_dashboard_status") },
+  ];
+
   const hasLoad = (load1 !== null || load5 !== null || load15 !== null);
 
   return (
-    <div className="mt-2 text-[11px] leading-4 text-slate-300/90">
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
-        <div>
-          <span className="text-slate-400">Tasks:</span>{" "}
-          <span className="font-mono">{proc === null ? "—" : Math.round(proc)}</span>{" "}
-          <span className="text-slate-400">thr</span>{" "}
-          <span className="font-mono">{thr === null ? "—" : Math.round(thr)}</span>{" "}
-          <span className="text-slate-400">kthr</span>{" "}
-          <span className="font-mono">{kthr === null ? "—" : Math.round(kthr)}</span>{" "}
-          <span className="text-slate-400">running:</span>{" "}
-          <span className="font-mono">{run === null ? "—" : Math.round(run)}</span>
+    <div className="mt-2 text-[11px] leading-4 text-slate-300/90 font-mono">
+      <div className="flex flex-col gap-y-2">
+        {/* Tasks e Uptime */}
+        <div className="flex flex-wrap gap-x-4">
+          <div>
+            <span className="text-slate-500 font-bold uppercase">Tasks:</span>{" "}
+            <span>{proc === null ? "—" : Math.round(proc)}</span>,{" "}
+            <span>{thr === null ? "—" : Math.round(thr)}</span> thr,{" "}
+            <span>{run === null ? "—" : Math.round(run)}</span> running
+          </div>
+          <div>
+            <span className="text-slate-500 font-bold uppercase">Uptime:</span>{" "}
+            <span>{fmtUptime(uptime)}</span>
+          </div>
         </div>
 
-        {hasLoad && (
-          <div>
-            <span className="text-slate-400">Load average:</span>{" "}
-            <span className="font-mono">{fmtLoad(load1, load5, load15)}</span>
-          </div>
-        )}
-
-        <div>
-          <span className="text-slate-400">Uptime:</span>{" "}
-          <span className="font-mono">{fmtUptime(uptime)}</span>
+        {/* Serviços */}
+        <div className="flex flex-wrap gap-x-3 border-t border-white/5 pt-2">
+          {services.map(s => s.val !== null && (
+            <div key={s.name} className="flex items-center gap-1">
+              <span className="text-slate-500 uppercase font-bold">{s.name}:</span>
+              <span className={s.val === 1 ? "text-emerald-400" : "text-rose-500"}>
+                {s.val === 1 ? "active" : "inactive"}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 
       {loading && (
-        <div className="mt-1 text-[10px] text-slate-500">Atualizando detalhes...</div>
+        <div className="mt-1 text-[10px] text-slate-500 italic">Atualizando...</div>
       )}
     </div>
   );

@@ -60,10 +60,10 @@ export function TelemetryDashboard({ raw, fieldMap, vm }) {
 
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="flex-1">
-          <ResourceUsageCard data={computed.resources} />
+          <ResourceUsageCard data={computed.resources} host={computed.host} />
         </div>
         <div className="lg:w-80">
-          <CpuExtraInfo host={computed.host} />
+          <CpuExtraInfo tenantID={host.tenant_id} deviceID={host.id} />
         </div>
       </div>
       <NetworkUsageCard current={computed.network?.current} series={computed.network?.series} />

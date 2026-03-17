@@ -148,6 +148,15 @@ func main() {
 			metricMap["mem_total_bytes"] = client.Metric{T: ts, V: snap.MemTotalBytes}
 			metricMap["mem_used_bytes"] = client.Metric{T: ts, V: snap.MemUsedBytes}
 
+			// Monitoramento de Serviços (0=inactive, 1=active)
+			for name, status := range snap.Services {
+				val := 0.0
+				if status == "active" {
+					val = 1.0
+				}
+				metricMap["service_"+name+"_status"] = client.Metric{T: ts, V: val}
+			}
+
 			// Linux: load average + kthreads + running
 			if runtime.GOOS != "windows" {
 				metricMap["load1"] = client.Metric{T: ts, V: snap.System.Load1}
