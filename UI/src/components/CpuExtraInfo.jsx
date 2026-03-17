@@ -31,7 +31,8 @@ export default function CpuExtraInfo({ tenantID, deviceID }) {
   const [loading, setLoading] = useState(false);
 
   const metrics = useMemo(() => (
-    "uptime_sec,load1,load5,load15,proc_count,thread_count,kthread_count,running_procs"
+    "uptime_sec,load1,load5,load15,proc_count,thread_count,kthread_count,running_procs," +
+    "service_docker_status,service_nginx_status,service_postgresql_status,service_central_status,service_dashboard_status"
   ), []);
 
   useEffect(() => {

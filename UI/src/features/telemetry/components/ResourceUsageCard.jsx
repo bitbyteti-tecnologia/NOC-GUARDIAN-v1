@@ -53,8 +53,13 @@ export function ResourceUsageCard({ data, host }) {
   const diskCurrent = clampPct(data?.diskPct);
 
   // Load Average do host (se disponível nas métricas em tempo real)
-  const loadStr = host?.load_avg_1 != null 
-    ? `${host.load_avg_1.toFixed(2)} ${host.load_avg_5?.toFixed(2)} ${host.load_avg_15?.toFixed(2)}`
+  // Tentando mapear tanto load1/5/15 quanto load_avg_1/5/15
+  const l1 = host?.load_avg_1 ?? host?.load1;
+  const l5 = host?.load_avg_5 ?? host?.load5;
+  const l15 = host?.load_avg_15 ?? host?.load15;
+
+  const loadStr = l1 != null 
+    ? `${l1.toFixed(2)} ${l5?.toFixed(2)} ${l15?.toFixed(2)}`
     : null;
 
   return (
