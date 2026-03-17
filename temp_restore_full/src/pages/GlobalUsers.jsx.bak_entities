@@ -1,0 +1,132 @@
+// GlobalUsers.jsx
+// - Tela de gestão de usuários GLOBAIS (superadmin/support).
+// - Consome API Central:
+//    GET  /api/v1/users  -> lista globais (tenant_id NULL)
+//    POST /api/v1/users  -> cria/atualiza global
+//
+// Observação:
+// - O backend é quem valida de verdade o RBAC; aqui só fazemos RBAC visual.
+
+import React, { useEffect, useState } from "react";
+import api from "../lib/api";
+import useMe from "../hooks/useMe";
+
+export default function GlobalUsers() {
+  const { me } = useMe();
+  const [users, setUsers] = useState([]);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("support");
+  const [msg, setMsg] = useState("");
+
+  const canManage = me && (me.role === "superadmin" || me.role === "support");
+
+  async function load() {
+    try {
+      const r = await api.get("/api/v1/users");
+      setUsers(r.data || []);
+    } catch {
+      setUsers([]);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function onSave(e) {
+    e.preventDefault();
+    setMsg("");
+    try {
+      await api.post("/api/v1/users", { email, password, role });
+      setMsg("Usuário global criado/atualizado com sucesso.");
+      setEmail(""); setPassword(""); setRole("support");
+      await load();
+    } catch {
+      setMsg("Falha ao salvar (verifique permissões/duplicidade).");
+    }
+  }
+
+  if (!canManage) {
+    return (
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold">Usuários Globais</h1>
+        <div className="text-slate-400">Sem permissão para acessar esta página.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">Usuários Globais</h1>
+
+      <form onSubmit={onSave} className="card space-y-3 max-w-md">
+        <div className="font-semibold">Criar / Atualizar</div>
+
+        <div>
+          <label className="text-sm">E-mail</label>
+          <input
+            className="w-full p-2 rounded text-slate-900"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="suporte@empresa.com"
+          />
+        </div>
+
+        <div>
+          <label className="text-sm">Senha</label>
+          <input
+            type="password"
+            className="w-full p-2 rounded text-slate-900"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Defina uma senha forte"
+          />
+        </div>
+
+        <div>
+          <label className="text-sm">Role</label>
+          <select
+            className="w-full p-2 rounded text-slate-900"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+          >
+            <option value="support">support</option>
+            <option value="superadmin">superadmin</option>
+          </select>
+        </div>
+
+        <button className="px-4 py-2 bg-sky-600 rounded hover:bg-sky-500">
+          Salvar
+        </button>
+
+        {msg && <div className="text-sm text-slate-300">{msg}</div>}
+      </form>
+
+      <div className="card">
+        <div className="font-semibold mb-2">Lista de usuários globais</div>
+        <table className="w-full text-sm">
+          <thead className="text-slate-400">
+            <tr>
+              <th className="text-left">E-mail</th>
+              <th className="text-left">Role</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u) => (
+              <tr key={u.id} className="border-t border-slate-800">
+                <td>{u.email}</td>
+                <td>{u.role}</td>
+              </tr>
+            ))}
+            {users.length === 0 && (
+              <tr>
+                <td className="text-slate-500 py-3" colSpan="2">
+                  Nenhum usuário global encontrado.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

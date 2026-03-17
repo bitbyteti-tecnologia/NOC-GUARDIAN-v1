@@ -1,0 +1,50 @@
+// ChartLine.jsx
+// - Componente de gráfico de linha simples usando Recharts.
+// - Espera "data" no formato: [{ t: ISODateString | timestamp, v: number }, ...]
+// - Usado no dashboard do cliente (Customer.jsx).
+
+import React from "react";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid
+} from "recharts";
+
+function fmtTime(x) {
+  try {
+    const d = new Date(x);
+    return isNaN(d.getTime()) ? String(x) : d.toLocaleTimeString();
+  } catch {
+    return String(x);
+  }
+}
+
+export default function ChartLine({ data = [], color = "#60a5fa", yLabel = "" }) {
+  return (
+    <div style={{ width: "100%", height: 240 }}>
+      <ResponsiveContainer>
+        <LineChart data={data}>
+          <CartesianGrid stroke="#1f2937" strokeDasharray="3 3" />
+          <XAxis
+            dataKey="t"
+            tickFormatter={fmtTime}
+            stroke="#94a3b8"
+            minTickGap={24}
+          />
+          <YAxis stroke="#94a3b8" />
+          <Tooltip
+            labelFormatter={(v) => {
+              try { return new Date(v).toLocaleString(); } catch { return String(v); }
+            }}
+          />
+          <Line type="monotone" dataKey="v" stroke={color} dot={false} strokeWidth={2} />
+        </LineChart>
+      </ResponsiveContainer>
+      {yLabel ? <div className="text-xs text-slate-500 mt-1">{yLabel}</div> : null}
+    </div>
+  );
+}

@@ -1,0 +1,47 @@
+import React, { useState } from "react";
+import api, { setAuthHeader } from "../lib/api";
+
+export default function Login() {
+  const [email, setEmail] = useState("bitbyteti@gmail.com");
+  const [password, setPassword] = useState("");
+  const [err, setErr] = useState("");
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    setErr("");
+    try {
+      const resp = await api.post("/api/v1/auth/login", { email, password });
+      const { token } = resp.data;
+      localStorage.setItem("token", token);
+      // Marca o início da sessão para "tempo conectado"
+      localStorage.setItem("login_at", Date.now().toString());
+      setAuthHeader(token);
+      window.location.href = "/";
+    } catch (e) {
+      setErr("Credenciais inválidas");
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100">
+      <form onSubmit={onSubmit} className="card w-full max-w-sm space-y-4">
+        <h1 className="text-xl font-bold">Login - NOC Guardian</h1>
+        {err && <div className="text-red-400 text-sm">{err}</div>}
+
+        <div>
+          <label className="block text-sm mb-1">E-mail</label>
+          <input className="w-full rounded p-2 text-slate-900" value={email} onChange={e=>setEmail(e.target.value)} />
+        </div>
+
+        <div>
+          <label className="block text-sm mb-1">Senha</label>
+          <input type="password" className="w-full rounded p-2 text-slate-900" value={password} onChange={e=>setPassword(e.target.value)} />
+        </div>
+
+        <button className="w-full bg-sky-600 py-2 rounded hover:bg-sky-500">Entrar</button>
+
+        <a className="text-sm underline text-slate-300" href="/forgot-password">Esqueci minha senha</a>
+      </form>
+    </div>
+  );
+}

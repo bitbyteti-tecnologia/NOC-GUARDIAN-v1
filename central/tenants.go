@@ -142,11 +142,13 @@ CREATE EXTENSION IF NOT EXISTS timescaledb_toolkit;
 
 CREATE TABLE IF NOT EXISTS devices (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  hostname TEXT NOT NULL,
-  ip INET NOT NULL,
-  type TEXT NOT NULL,
+  hostname TEXT NOT NULL UNIQUE,
+  ip TEXT NOT NULL DEFAULT '',
+  type TEXT NOT NULL DEFAULT 'server',
+  os TEXT NOT NULL DEFAULT 'linux',
   vendor TEXT,
   model TEXT,
+  last_seen TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

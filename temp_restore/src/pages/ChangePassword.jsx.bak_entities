@@ -1,0 +1,44 @@
+import React, { useState } from "react";
+import api from "../lib/api";
+
+export default function ChangePassword() {
+  const [current, setCurrent] = useState("");
+  const [n1, setN1] = useState("");
+  const [n2, setN2] = useState("");
+  const [msg, setMsg] = useState("");
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    setMsg("");
+    if (n1 !== n2) { setMsg("As senhas não coincidem."); return; }
+    try {
+      await api.post("/api/v1/auth/change-password", { current, new: n1 });
+      setMsg("Senha alterada com sucesso.");
+      setCurrent(""); setN1(""); setN2("");
+    } catch {
+      setMsg("Falha ao alterar senha (confira a senha atual).");
+    }
+  }
+
+  return (
+    <div className="p-6 space-y-4">
+      <h1 className="text-2xl font-bold">Alterar Senha</h1>
+      <form onSubmit={onSubmit} className="card space-y-3 max-w-md">
+        <div>
+          <label className="text-sm">Senha atual</label>
+          <input type="password" className="w-full p-2 rounded text-slate-900" value={current} onChange={e=>setCurrent(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-sm">Nova senha</label>
+          <input type="password" className="w-full p-2 rounded text-slate-900" value={n1} onChange={e=>setN1(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-sm">Confirmar nova senha</label>
+          <input type="password" className="w-full p-2 rounded text-slate-900" value={n2} onChange={e=>setN2(e.target.value)} />
+        </div>
+        <button className="px-3 py-2 bg-sky-600 rounded">Salvar</button>
+        {msg && <div className="text-sm text-slate-300">{msg}</div>}
+      </form>
+    </div>
+  );
+}

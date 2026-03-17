@@ -1,0 +1,92 @@
+// CreateTenant.jsx
+// - Cria um novo cliente (tenant) via POST /api/v1/tenants.
+// - Após criar, mostra ações:
+//    1) Abrir dashboard do cliente (/tenant/:id)
+//    2) Voltar ao dashboard global com destaque (/?highlight=:id)
+//
+// RBAC:
+// - Apenas superadmin/support (backend valida; aqui é visual).
+
+import React, { useState } from "react";
+import api from "../lib/api";
+import useMe from "../hooks/useMe";
+import { Link } from "react-router-dom";
+
+export default function CreateTenant() {
+  const { me } = useMe();
+  const [name, setName] = useState("");
+  const [msg, setMsg] = useState("");
+  const [created, setCreated] = useState(null); // {id, name, db_name}
+
+  const can = me && (me.role === "superadmin" || me.role === "support");
+  if (!can) return <div className="text-slate-400">Sem permissão.</div>;
+
+  async function onCreate(e) {
+    e.preventDefault();
+    setMsg("");
+    setCreated(null);
+
+    try {
+      const r = await api.post("/api/v1/tenants", { name });
+      setCreated(r.data);
+      setMsg("Cliente criado com sucesso.");
+    } catch (e) {
+      setMsg("Falha ao criar cliente. Verifique logs/back-end.");
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">Criar novo cliente</h1>
+
+      <form onSubmit={onCreate} className="card space-y-3 max-w-md">
+        <div>
+          <label className="text-sm">Nome do Cliente</label>
+          <input
+            className="w-full p-2 rounded text-slate-900"
+            value={name}
+            onChange={e=>setName(e.target.value)}
+            placeholder="Cliente Matriz"
+          />
+        </div>
+
+        <button className="px-4 py-2 bg-sky-600 rounded hover:bg-sky-500">
+          Criar
+        </button>
+
+        {msg && <div className="text-sm text-slate-300">{msg}</div>}
+      </form>
+
+      {created && (
+        <div className="card space-y-3">
+          <div className="font-semibold">Cliente criado</div>
+          <div className="text-sm text-slate-400">
+            <div><b>ID:</b> {created.id}</div>
+            <div><b>Nome:</b> {created.name}</div>
+            <div><b>DB:</b> {created.db_name}</div>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-3">
+            <Link
+              to={`/tenant/${created.id}`}
+              className="px-4 py-2 rounded bg-emerald-700 hover:bg-emerald-600 text-center"
+            >
+              Abrir dashboard do cliente
+            </Link>
+
+            <Link
+              to={`/?highlight=${created.id}`}
+              className="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-center"
+            >
+              Voltar ao dashboard global (destacar card)
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-slate-500">
+        Ao criar, a Central cria um DB isolado do tenant automaticamente e aplica migrações TimescaleDB.
+      </div>
+    </div>
+  );
+}

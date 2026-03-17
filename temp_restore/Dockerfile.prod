@@ -1,0 +1,19 @@
+# Dockerfile.prod (UI)
+# - Stage 1: build do React (Vite) gerando /dist
+# - Stage 2: nginx serve arquivos estáticos do /dist
+# - Ideal para produção: não depende do Vite DEV server (/@vite/client), evita tela branca.
+
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package.json ./
+# Se existir package-lock.json, use npm ci (mais reprodutível)
+# Mantemos npm install para não quebrar se não houver lock.
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM nginx:1.25-alpine
+# Config SPA: qualquer rota volta para index.html (React Router)
+COPY ./nginx.ui.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80

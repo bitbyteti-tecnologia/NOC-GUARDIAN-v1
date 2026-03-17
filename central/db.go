@@ -6,45 +6,45 @@
 package main
 
 import (
-    "context"
-    "fmt"
-    "os"
-    "time"
+	"context"
+	"fmt"
+	"os"
+	"time"
 
-    "github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var MasterConn *pgxpool.Pool
 
 func InitMasterDB() error {
-    dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
-        os.Getenv("MASTER_DB_USER"),
-        os.Getenv("MASTER_DB_PASS"),
-        os.Getenv("MASTER_DB_HOST"),
-        os.Getenv("MASTER_DB_PORT"),
-        os.Getenv("MASTER_DB_NAME"),
-    )
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
+		getenv("MASTER_DB_USER", "guardian"),
+		getenv("MASTER_DB_PASS", "guardian_strong_password"),
+		getenv("MASTER_DB_HOST", "db"),
+		getenv("MASTER_DB_PORT", "5432"),
+		getenv("MASTER_DB_NAME", "guardian_master"),
+	)
+	var err error
+	MasterConn, err = pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		return err
+	}
 
-   cfg, err := pgxpool.ParseConfig(dsn)
-   if err != nil {
-      return err
+	// Testa conexão
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return MasterConn.Ping(ctx)
 }
 
-   // Opcional (mas pode ajudar a evitar dores com prepared statements):
-   // cfg.ConnConfig.StatementCacheCapacity = 0
-
-    pool, err := pgxpool.NewWithConfig(ctx, cfg)
-    if err != nil {
-         return err
-    }
-    MasterConn = pool
-    return nil
+func getenv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
 
 func RunMasterMigrations() error {
-    sql := `
+	sql := `
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Usuários globais e por tenant
@@ -126,16 +126,39 @@ BEGIN
     CREATE INDEX idx_pr_expires ON password_resets(expires_at);
   END IF;
 END$$;
+
+-- API Keys (Para agentes e integrações)
+CREATE TABLE IF NOT EXISTS api_keys (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  key_prefix TEXT NOT NULL,
+  key_hash TEXT NOT NULL,
+  name TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  last_used_at TIMESTAMPTZ
+);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_ak_tenant') THEN
+    CREATE INDEX idx_ak_tenant ON api_keys(tenant_id);
+  END IF;
+END$$;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_ak_prefix') THEN
+    CREATE INDEX idx_ak_prefix ON api_keys(key_prefix);
+  END IF;
+END$$;
 `
-    _, err := MasterConn.Exec(context.Background(), sql)
-    return err
+	_, err := MasterConn.Exec(context.Background(), sql)
+	return err
 }
 
 func CreateTenantDatabase(dbName string) error {
-    _, err := MasterConn.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE %s;", QuoteIdent(dbName)))
-    return err
+	_, err := MasterConn.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE %s;", QuoteIdent(dbName)))
+	return err
 }
 
 func QuoteIdent(s string) string {
-    return `"` + s + `"`
+	return `"` + s + `"`
 }

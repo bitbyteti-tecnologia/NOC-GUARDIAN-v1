@@ -1,0 +1,13 @@
+import { TelemetryDashboard } from "../features/telemetry/TelemetryDashboard";
+import { defaultFieldMap } from "../features/telemetry/defaultFieldMap";
+
+export default function TelemetryTest() {
+  // SEM MOCK: quando você ligar ao payload real, substitui esse null pelo raw real
+  const clientTelemetryRaw = null;
+
+  return (
+    <div className="p-6">
+      <TelemetryDashboard raw={clientTelemetryRaw} fieldMap={defaultFieldMap} />
+    </div>
+  );
+}

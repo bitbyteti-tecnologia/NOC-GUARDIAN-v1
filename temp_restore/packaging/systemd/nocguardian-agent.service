@@ -1,0 +1,15 @@
+[Unit]
+Description=NOC Guardian Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nocguardian
+Group=nocguardian
+ExecStart=/usr/bin/nocguardian-agent --config /etc/nocguardian/agent.yml --interval 30 --disk /
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
