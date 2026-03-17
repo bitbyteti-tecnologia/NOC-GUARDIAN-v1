@@ -63,7 +63,10 @@ export function TelemetryDashboard({ raw, fieldMap, vm }) {
           <ResourceUsageCard data={computed.resources} host={computed.host} />
         </div>
         <div className="lg:w-80">
-          <CpuExtraInfo tenantID={host.tenant_id} deviceID={host.id} />
+          <CpuExtraInfo 
+            tenantID={computed.host?.tenant_id} 
+            deviceID={computed.host?.id} 
+          />
         </div>
       </div>
       <NetworkUsageCard current={computed.network?.current} series={computed.network?.series} />
