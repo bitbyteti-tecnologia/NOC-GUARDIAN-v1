@@ -145,6 +145,7 @@ func writeJSON(w http.ResponseWriter, v any, err error) {
         if errors.Is(err, sql.ErrNoRows) {
             code = http.StatusNotFound
         }
+        log.Printf("[ERROR] %v\n", err)
         http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), code)
         return
     }

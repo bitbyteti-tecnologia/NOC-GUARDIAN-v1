@@ -29,8 +29,33 @@ function toTs(v) {
   const d = typeof v === "string" ? Date.parse(v) : NaN;
   return Number.isFinite(d) ? d : undefined;
 }
-export function mapTelemetry(host, rx, tx, read, write, netOk, diskOk, memSeries) {
-  const lastMetrics = host.metrics || {};
+export function mapTelemetry(rawOrHost, rxOrMap, tx, read, write, netOk, diskOk, memSeries) {
+  // Se for o estilo antigo (raw, map)
+  if (typeof rxOrMap === "object" && !Array.isArray(rxOrMap) && rxOrMap.hostName) {
+    const raw = rawOrHost;
+    const map = rxOrMap;
+    return {
+      host: {
+        name: String(getByPath(raw, map.hostName) ?? ""),
+        ip: getByPath(raw, map.hostIp),
+        os: getByPath(raw, map.hostOs),
+        uptime: getByPath(raw, map.hostUptime),
+      },
+      resources: {
+        cpuPct: toNumber(getByPath(raw, map.cpuPct)),
+        memPct: toNumber(getByPath(raw, map.memPct)),
+        diskPct: toNumber(getByPath(raw, map.diskPct)),
+      },
+      network: {
+        current: { rx: toNumber(getByPath(raw, map.netCurrentRxBps)), tx: toNumber(getByPath(raw, map.netCurrentTxBps)) },
+      }
+    };
+  }
+
+  // Estilo novo
+  const host = rawOrHost;
+  const rx = rxOrMap;
+  const lastMetrics = host?.metrics || {};
 
   return {
     host: {
@@ -48,8 +73,8 @@ export function mapTelemetry(host, rx, tx, read, write, netOk, diskOk, memSeries
       cpuPct: lastMetrics.cpu_percent,
       memPct: lastMetrics.mem_used_pct,
       diskPct: lastMetrics.disk_used_pct,
-      memUsedBytes: host.memUsedBytes,
-      memTotalBytes: host.memTotalBytes,
+      memUsedBytes: host?.memUsedBytes,
+      memTotalBytes: host?.memTotalBytes,
       memSeries,
     },
     network: {

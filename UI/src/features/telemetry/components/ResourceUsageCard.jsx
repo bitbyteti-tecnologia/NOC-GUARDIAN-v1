@@ -2,7 +2,7 @@ import React from "react";
 import { clampPct, formatPct, formatBytes } from "../format";
 
 function ProgressBar({ value, label, sublabel, colorClass }) {
-  const pct = clampPct(value);
+  const pct = clampPct(value) ?? 0;
   // Estilo htop: [|||||      20%]
   const bars = Math.floor(pct / 4); // 25 barras total
   const barStr = "|".repeat(bars) + " ".repeat(25 - bars);
