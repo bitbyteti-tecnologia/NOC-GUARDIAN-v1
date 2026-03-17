@@ -72,9 +72,12 @@ export default function Login() {
           <img 
             src="/Logo NOC - Guardian-01-Transparente.png" 
             alt="NOC Guardian" 
-            className="h-28 w-auto object-contain mb-2"
+            className="h-28 w-auto object-contain mb-1"
             onError={(e) => { e.target.style.display = 'none'; }}
           />
+          <div className="text-[10px] font-black tracking-[0.25em] text-sky-400/90 uppercase text-center mt-[-10px] drop-shadow-[0_0_8px_rgba(56,189,248,0.4)]">
+            Monitor - Protect - Optimize
+          </div>
         </div>
 
         {err && (
