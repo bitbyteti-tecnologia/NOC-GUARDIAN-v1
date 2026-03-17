@@ -1,4 +1,4 @@
-import { clampPct, formatPct } from "../format";
+import { clampPct, formatPct, formatBytes } from "../format";
 import { Gauge } from "./Gauge";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
 
@@ -43,6 +43,9 @@ function toSparkData(series) {
 }
 
 export function ResourceUsageCard({ data }) {
+  const memUsed = data?.memUsedBytes;
+  const memTotal = data?.memTotalBytes;
+
   const cpu = data?.cpuPct;
   const mem = data?.memPct;
   const disk = data?.diskPct;
@@ -91,7 +94,14 @@ export function ResourceUsageCard({ data }) {
           </div>
 
           <div className="mt-2 flex items-end justify-between">
-            <div className="text-sm font-semibold text-slate-100">{formatPct(memCurrent)}</div>
+            <div className="flex flex-col">
+              <div className="text-sm font-semibold text-slate-100">{formatPct(memCurrent)}</div>
+              {memUsed != null && memTotal != null && (
+                <div className="text-[10px] leading-tight text-slate-500">
+                  {formatBytes(memUsed)} / {formatBytes(memTotal)}
+                </div>
+              )}
+            </div>
             <div className="text-[11px] text-slate-500">últimos pontos</div>
           </div>
 

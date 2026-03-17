@@ -16,6 +16,9 @@ type Snapshot struct {
 	DiskUsedPct float64
 	DiskPath    string
 
+	MemTotalBytes float64
+	MemUsedBytes  float64
+
 	HasSys bool
 	System SystemInfo
 }
@@ -98,7 +101,7 @@ func diskUsedPercent(path string) (float64, error) {
 }
 
 func Collect(diskPath string) (Snapshot, error) {
-	mem, err := memUsedPercent()
+	memPct, totalBytes, usedBytes, err := memInfo()
 	if err != nil {
 		return Snapshot{}, err
 	}
@@ -113,12 +116,27 @@ func Collect(diskPath string) (Snapshot, error) {
 	sys, hasSys := collectSystemInfo()
 
 	return Snapshot{
-		TS:          time.Now().UTC(),
-		CPUPercent:  0, // MVP: implementar depois (PDH/WMI)
-		MemUsedPct:  mem,
-		DiskUsedPct: disk,
-		DiskPath:    diskPath,
-		HasSys:      hasSys,
-		System:      sys,
+		TS:            time.Now().UTC(),
+		CPUPercent:    0, // MVP: implementar depois (PDH/WMI)
+		MemUsedPct:    memPct,
+		MemTotalBytes: totalBytes,
+		MemUsedBytes:  usedBytes,
+		DiskUsedPct:   disk,
+		DiskPath:      diskPath,
+		HasSys:        hasSys,
+		System:        sys,
 	}, nil
+}
+
+func memInfo() (pct float64, total float64, used float64, err error) {
+	var mem windows.MemoryStatusEx
+	mem.Size = uint32(unsafe.Sizeof(mem))
+	if err := windows.GlobalMemoryStatusEx(&mem); err != nil {
+		return 0, 0, 0, err
+	}
+	total = float64(mem.TotalPhys)
+	free := float64(mem.AvailPhys)
+	used = total - free
+	pct = float64(mem.MemoryLoad)
+	return pct, total, used, nil
 }

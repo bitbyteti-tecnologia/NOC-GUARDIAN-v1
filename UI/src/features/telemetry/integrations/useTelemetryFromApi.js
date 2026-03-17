@@ -57,10 +57,12 @@ export function useTelemetryFromApi({
         netOk: "telemetry_net_ok",
         diskOk: "telemetry_disk_ok",
         mem: "mem_used_pct",
+        memUsed: "mem_used_bytes",
+        memTotal: "mem_total_bytes",
       };
 
       try {
-        const [a, b, c, d, e, f, g] = await Promise.all([
+        const [a, b, c, d, e, f, g, h, i] = await Promise.all([
           api.get(`${base}&metric=${encodeURIComponent(METRICS.rx)}`),
           api.get(`${base}&metric=${encodeURIComponent(METRICS.tx)}`),
           api.get(`${base}&metric=${encodeURIComponent(METRICS.read)}`),
@@ -68,6 +70,8 @@ export function useTelemetryFromApi({
           api.get(`${base}&metric=${encodeURIComponent(METRICS.netOk)}`),
           api.get(`${base}&metric=${encodeURIComponent(METRICS.diskOk)}`),
           api.get(`${base}&metric=${encodeURIComponent(METRICS.mem)}`),
+          api.get(`${base}&metric=${encodeURIComponent(METRICS.memUsed)}`),
+          api.get(`${base}&metric=${encodeURIComponent(METRICS.memTotal)}`),
         ]);
 
         if (!alive) return;
@@ -79,6 +83,11 @@ export function useTelemetryFromApi({
         setNetOkSeries(normalizePoints(e.data).map((p) => ({ ts: toTs(p), v: toVal(p) })).filter((p) => p.ts));
         setDiskOkSeries(normalizePoints(f.data).map((p) => ({ ts: toTs(p), v: toVal(p) })).filter((p) => p.ts));
         setMemSeries(normalizePoints(g.data).map((p) => ({ ts: toTs(p), v: toVal(p) })).filter((p) => p.ts));
+
+        const lastUsed = normalizePoints(h.data).pop()?.v;
+        const lastTotal = normalizePoints(i.data).pop()?.v;
+        if (lastUsed !== undefined) host.memUsedBytes = lastUsed;
+        if (lastTotal !== undefined) host.memTotalBytes = lastTotal;
       } catch {
         if (!alive) return;
         setRx([]); setTx([]); setRead([]); setWrite([]);

@@ -5,6 +5,7 @@ package metrics
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -18,6 +19,9 @@ type Snapshot struct {
 	MemUsedPct  float64
 	DiskUsedPct float64
 	DiskPath    string
+
+	MemTotalBytes float64
+	MemUsedBytes  float64
 
 	HasSys bool
 	System SystemInfo
@@ -144,7 +148,7 @@ func Collect(diskPath string) (Snapshot, error) {
 	}
 
 	cpu := cpuPercent(prev, cur)
-	mem, err := memUsedPercent()
+	memPct, totalBytes, usedBytes, err := memInfo()
 	if err != nil {
 		return Snapshot{}, err
 	}
@@ -159,12 +163,50 @@ func Collect(diskPath string) (Snapshot, error) {
 	sys, hasSys := collectSystemInfo()
 
 	return Snapshot{
-		TS:          time.Now().UTC(),
-		CPUPercent:  cpu,
-		MemUsedPct:  mem,
-		DiskUsedPct: disk,
-		DiskPath:    diskPath,
-		HasSys:      hasSys,
-		System:      sys,
+		TS:            time.Now().UTC(),
+		CPUPercent:    cpu,
+		MemUsedPct:    memPct,
+		MemTotalBytes: totalBytes,
+		MemUsedBytes:  usedBytes,
+		DiskUsedPct:   disk,
+		DiskPath:      diskPath,
+		HasSys:        hasSys,
+		System:        sys,
 	}, nil
+}
+
+func memInfo() (pct float64, total float64, used float64, err error) {
+	f, err := os.Open("/proc/meminfo")
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	defer f.Close()
+
+	var memTotal, memFree, buffers, cached float64
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := sc.Text()
+		parts := strings.Fields(line)
+		if len(parts) < 2 {
+			continue
+		}
+		val, _ := strconv.ParseFloat(parts[1], 64)
+		switch parts[0] {
+		case "MemTotal:":
+			memTotal = val * 1024
+		case "MemFree:":
+			memFree = val * 1024
+		case "Buffers:":
+			buffers = val * 1024
+		case "Cached:":
+			cached = val * 1024
+		}
+	}
+	if memTotal == 0 {
+		return 0, 0, 0, fmt.Errorf("could not parse MemTotal")
+	}
+	// Usado = Total - Livre - Buffers - Cached (estilo htop/free)
+	used = memTotal - memFree - buffers - cached
+	pct = (used / memTotal) * 100
+	return pct, memTotal, used, nil
 }

@@ -29,73 +29,36 @@ function toTs(v) {
   const d = typeof v === "string" ? Date.parse(v) : NaN;
   return Number.isFinite(d) ? d : undefined;
 }
-export function mapTelemetry(raw, map) {
-  const host = {
-    name: String(getByPath(raw, map.hostName) ?? ""),
-    ip: getByPath(raw, map.hostIp),
-    os: getByPath(raw, map.hostOs),
-    uptime: getByPath(raw, map.hostUptime),
-  };
-
-  const resources = {
-    cpuPct: toNumber(getByPath(raw, map.cpuPct)),
-    memPct: toNumber(getByPath(raw, map.memPct)),
-    diskPct: toNumber(getByPath(raw, map.diskPct)),
-    diskMount: getByPath(raw, map.diskMount),
-  };
-
-  const rx = toNumber(getByPath(raw, map.netCurrentRxBps));
-  const tx = toNumber(getByPath(raw, map.netCurrentTxBps));
-
-  const networkSeriesRaw = getByPath(raw, map.netSeries);
-  const networkSeries = Array.isArray(networkSeriesRaw)
-    ? networkSeriesRaw.map((it) => ({
-        ts: toTs(getByPath(it, map.netSeriesTs)) ?? 0,
-        rxBps: toNumber(getByPath(it, map.netSeriesRxBps)),
-        txBps: toNumber(getByPath(it, map.netSeriesTxBps)),
-      })).filter((p) => p.ts > 0)
-    : undefined;
-
-  const read = toNumber(getByPath(raw, map.diskReadBps));
-  const write = toNumber(getByPath(raw, map.diskWriteBps));
-
-  const diskSeriesRaw = getByPath(raw, map.diskSeries);
-  const diskSeries = Array.isArray(diskSeriesRaw)
-    ? diskSeriesRaw.map((it) => ({
-        ts: toTs(getByPath(it, map.diskSeriesTs)) ?? 0,
-        readBps: toNumber(getByPath(it, map.diskSeriesReadBps)),
-        writeBps: toNumber(getByPath(it, map.diskSeriesWriteBps)),
-      })).filter((p) => p.ts > 0)
-    : undefined;
-
-  const netOk = toBool(getByPath(raw, map.flagNetOk));
-  const diskOk = toBool(getByPath(raw, map.flagDiskOk));
-
-  const alertsRaw = getByPath(raw, map.alerts);
-  const alerts = Array.isArray(alertsRaw)
-    ? alertsRaw.map((it) => {
-        const sevRaw = getByPath(it, map.alertSeverity);
-        const severity = (sevRaw === "critical" || sevRaw === "warning" || sevRaw === "info") ? sevRaw : "info";
-        return {
-          ts: toTs(getByPath(it, map.alertTs)) ?? Date.now(),
-          message: String(getByPath(it, map.alertMessage) ?? ""),
-          severity,
-        };
-      }).filter((a) => a.message)
-    : undefined;
+export function mapTelemetry(host, rx, tx, read, write, netOk, diskOk, memSeries) {
+  const lastMetrics = host.metrics || {};
 
   return {
-    host,
-    resources,
+    host: {
+      ...host,
+      uptime_sec: lastMetrics.uptime_sec,
+      proc_count: lastMetrics.proc_count,
+      thread_count: lastMetrics.thread_count,
+      kthread_count: lastMetrics.kthread_count,
+      running_procs: lastMetrics.running_procs,
+      load_avg_1: lastMetrics.load_avg_1,
+      load_avg_5: lastMetrics.load_avg_5,
+      load_avg_15: lastMetrics.load_avg_15,
+    },
+    resources: {
+      cpuPct: lastMetrics.cpu_percent,
+      memPct: lastMetrics.mem_used_pct,
+      diskPct: lastMetrics.disk_used_pct,
+      memUsedBytes: host.memUsedBytes,
+      memTotalBytes: host.memTotalBytes,
+      memSeries,
+    },
     network: {
-      current: { rxBps: rx, txBps: tx, totalBps: (rx ?? 0) + (tx ?? 0) },
-      series: networkSeries,
+      current: { rx: lastMetrics.net_rx_bps, tx: lastMetrics.net_tx_bps },
+      series: { rx, tx, ok: netOk },
     },
     diskIO: {
-      current: { readBps: read, writeBps: write },
-      series: diskSeries,
+      current: { read: lastMetrics.disk_read_bps, write: lastMetrics.disk_write_bps },
+      series: { read, write, ok: diskOk },
     },
-    flags: { netOk, diskOk },
-    alerts,
   };
 }

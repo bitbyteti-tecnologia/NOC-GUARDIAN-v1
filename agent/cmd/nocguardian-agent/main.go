@@ -145,6 +145,8 @@ func main() {
 			metricMap["uptime_sec"] = client.Metric{T: ts, V: snap.System.UptimeSec}
 			metricMap["proc_count"] = client.Metric{T: ts, V: snap.System.ProcCount}
 			metricMap["thread_count"] = client.Metric{T: ts, V: snap.System.ThreadCount}
+			metricMap["mem_total_bytes"] = client.Metric{T: ts, V: snap.MemTotalBytes}
+			metricMap["mem_used_bytes"] = client.Metric{T: ts, V: snap.MemUsedBytes}
 
 			// Linux: load average + kthreads + running
 			if runtime.GOOS != "windows" {

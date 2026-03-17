@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { mapTelemetry } from "./adapters";
 import { ResourceUsageCard } from "./components/ResourceUsageCard";
+import CpuExtraInfo from "../../components/CpuExtraInfo";
 import { NetworkUsageCard } from "./components/NetworkUsageCard";
 import { DiskIoCard } from "./components/DiskIoCard";
 import { TelemetryStatusCard } from "./components/TelemetryStatusCard";
@@ -26,7 +27,7 @@ export function TelemetryDashboard({ raw, fieldMap, vm }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="rounded-2xl bg-slate-900/60 p-4 shadow-lg ring-1 ring-white/10">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -57,7 +58,14 @@ export function TelemetryDashboard({ raw, fieldMap, vm }) {
         </div>
       </div>
 
-      <ResourceUsageCard data={computed.resources} />
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex-1">
+          <ResourceUsageCard data={computed.resources} />
+        </div>
+        <div className="lg:w-80">
+          <CpuExtraInfo host={computed.host} />
+        </div>
+      </div>
       <NetworkUsageCard current={computed.network?.current} series={computed.network?.series} />
       <DiskIoCard current={computed.diskIO?.current} series={computed.diskIO?.series} />
       <TelemetryStatusCard flags={computed.flags} alerts={computed.alerts} />
