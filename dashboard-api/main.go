@@ -166,6 +166,7 @@ func tenantDBName(ctx context.Context, cfg Config, tenantId string) (string, err
 	c, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	if err := master.QueryRowContext(c, q, tenantId).Scan(&dbname); err != nil {
+		log.Printf("[ERROR] tenantDBName for id=%s: %v\n", tenantId, err)
 		return "", err
 	}
 	return dbname, nil
