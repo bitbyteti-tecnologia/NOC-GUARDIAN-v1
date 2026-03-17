@@ -1,5 +1,0 @@
-#!/bin/sh
-set -e
-systemctl stop nocguardian-agent.service || true
-systemctl disable nocguardian-agent.service || true
-exit 0
