@@ -67,19 +67,14 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-slate-100 p-4">
-      <div className="mb-8">
-        <img 
-          src="/Logo NOC - Guardian-01-Transparente.png" 
-          alt="NOC Guardian" 
-          className="h-24 object-contain"
-          onError={(e) => { e.target.style.display = 'none'; }}
-        />
-      </div>
-      
       <form onSubmit={onSubmit} className="card w-full max-w-sm space-y-4 border border-white/5 bg-slate-900/50 backdrop-blur-xl">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-black tracking-tight text-white uppercase italic">NOC Guardian</h1>
-          <p className="text-xs text-slate-500 font-medium">MONITOR - PROTECT - OPTIMIZE</p>
+        <div className="flex flex-col items-center mb-6">
+          <img 
+            src="/Logo NOC - Guardian-01-Transparente.png" 
+            alt="NOC Guardian" 
+            className="h-28 w-auto object-contain mb-2"
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
         </div>
 
         {err && (
