@@ -69,9 +69,14 @@ export default function Topbar() {
                   boxShadow: "0 0 20px rgba(0,0,0,0.8)",
                 }}
               />
-              {/* glow on triangle tips */}
-              <div className="pointer-events-none absolute -bottom-1 left-[15%] h-2 w-6 -translate-x-1/2 bg-sky-400/80 blur-sm" />
-              <div className="pointer-events-none absolute -bottom-1 right-[15%] h-2 w-6 translate-x-1/2 bg-sky-400/80 blur-sm" />
+              {/* shield behind logo */}
+              <div
+                className="pointer-events-none absolute left-1/2 top-1/2 h-[130px] w-[110px] -translate-x-1/2 -translate-y-1/2 bg-gradient-to-b from-slate-800/90 to-slate-950/90 border border-sky-500/40"
+                style={{
+                  clipPath: "polygon(50% 0%, 90% 12%, 100% 38%, 78% 100%, 50% 90%, 22% 100%, 0 38%, 10% 12%)",
+                  boxShadow: "0 0 18px rgba(56,189,248,0.35)",
+                }}
+              />
               <img
                 src="/Logo NOC - Guardian-01-Transparente.png"
                 alt="NOC Guardian Logo"
