@@ -1,17 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import api from "../lib/api";
 import HostDrawer from "../components/HostDrawer";
 import { computeHostSeverity } from "../features/telemetry/health";
-
-function Card({ title, value }) {
-  return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-      <div className="text-xs text-slate-400 font-semibold">{title}</div>
-      <div className="text-xl font-extrabold text-slate-100 mt-1">{value}</div>
-    </div>
-  );
-}
+import useMe from "../hooks/useMe";
 
 function fmtDate(iso) {
   if (!iso) return "-";
@@ -41,19 +33,17 @@ function fmtDate(iso) {
   }
 }
 
-function fmtPct(v) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return "-";
-  return `${n.toFixed(2)}%`;
-}
-
 export default function Customer() {
   const params = useParams();
+  const navigate = useNavigate();
+  const { me } = useMe();
   const tenantId = params.tenantId || params.id || params.tenantID || params.tenant || "";
+  const isSuperAdmin = me?.role === "superadmin";
 
   const [summary, setSummary] = useState(null);
   const [hosts, setHosts] = useState([]);
   const [expandedHost, setExpandedHost] = useState(""); // hostname
+  const [tenantName, setTenantName] = useState("");
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [severityFilter, setSeverityFilter] = useState("all");
@@ -79,18 +69,21 @@ export default function Customer() {
     }
   }
 
+  async function loadTenantInfo() {
+    if (!tenantId) return;
+    try {
+      const r = await api.get(`/api/v1/tenants/${tenantId}`);
+      setTenantName(r.data?.name || "");
+    } catch {
+      setTenantName("");
+    }
+  }
+
   useEffect(() => {
     loadAll();
+    loadTenantInfo();
     // eslint-disable-next-line
   }, [tenantId]);
-
-  const enrichedHosts = useMemo(() => {
-    const arr = Array.isArray(hosts) ? hosts.map((h) => ({ ...h })) : [];
-    arr.forEach((h) => {
-      h._severity = computeHostSeverity(h);
-    });
-    return arr;
-  }, [hosts]);
 
   const lastHeartbeat = useMemo(() => {
     if (summary?.last_any_heartbeat) return summary.last_any_heartbeat;
@@ -102,27 +95,6 @@ export default function Customer() {
     if (!times.length) return null;
     return new Date(Math.max(...times));
   }, [summary, hosts]);
-
-  const agg = useMemo(() => {
-    const arr = enrichedHosts;
-    const total = arr.length || 0;
-    if (!total) {
-      return {
-        highCpuPct: "-",
-        highMemPct: "-",
-        highDiskPct: "-",
-      };
-    }
-    const highCpu = arr.filter((h) => Number(h.cpu_percent) >= 80).length;
-    const highMem = arr.filter((h) => Number(h.mem_used_pct) >= 80).length;
-    const highDisk = arr.filter((h) => Number(h.disk_used_pct) >= 90).length;
-    const toPct = (n) => `${((n / total) * 100).toFixed(0)}%`;
-    return {
-      highCpuPct: toPct(highCpu),
-      highMemPct: toPct(highMem),
-      highDiskPct: toPct(highDisk),
-    };
-  }, [enrichedHosts]);
 
   const hostsSorted = useMemo(() => {
     const arr = Array.isArray(hosts) ? [...hosts] : [];
@@ -196,32 +168,33 @@ export default function Customer() {
         <div>
           <h1 className="text-2xl font-bold">Dashboard do Cliente</h1>
           <div className="text-xs text-slate-400 mt-1">
-            Tenant: <span className="font-mono text-slate-300">{tenantId || "(vazio)"}</span>
+            Cliente: <span className="text-slate-200">{tenantName || "(sem nome)"}</span>
+            {tenantId ? (
+              <span className="ml-2 text-slate-500 font-mono">({tenantId})</span>
+            ) : null}
+          </div>
+          <div className="text-xs text-slate-400 mt-1">
+            Último heartbeat: <span className="text-slate-200">{fmtDate(lastHeartbeat)}</span>
           </div>
         </div>
 
-        <button
-          className="px-4 py-2 bg-sky-600 rounded hover:bg-sky-500 font-semibold"
-          onClick={loadAll}
-          disabled={loading}
-        >
-          {loading ? "..." : "Atualizar"}
-        </button>
-      </div>
-
-      {/* cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card title="Hosts" value={summary?.total_hosts ?? "-"} />
-        <Card title="Online" value={summary?.online ?? "-"} />
-        <Card title="Offline" value={summary?.offline ?? "-"} />
-        <Card title="Último heartbeat" value={fmtDate(lastHeartbeat)} />
-      </div>
-
-      {/* cards de risco */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card title="% Hosts CPU ≥ 80%" value={agg.highCpuPct} />
-        <Card title="% Hosts Mem ≥ 80%" value={agg.highMemPct} />
-        <Card title="% Hosts Disco ≥ 90%" value={agg.highDiskPct} />
+        <div className="flex items-center gap-2">
+          {isSuperAdmin && (
+            <button
+              className="px-3 py-2 bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 text-sm"
+              onClick={() => navigate("/")}
+            >
+              Voltar
+            </button>
+          )}
+          <button
+            className="px-4 py-2 bg-sky-600 rounded hover:bg-sky-500 font-semibold"
+            onClick={loadAll}
+            disabled={loading}
+          >
+            {loading ? "..." : "Atualizar"}
+          </button>
+        </div>
       </div>
 
       {/* downloads (mantém seu bloco atual sem mexer) */}
