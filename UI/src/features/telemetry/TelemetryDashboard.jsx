@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { mapTelemetry } from "./adapters";
 import { ResourceUsageCard } from "./components/ResourceUsageCard";
 import CpuExtraInfo from "../../components/CpuExtraInfo";
@@ -7,8 +7,6 @@ import { DiskIoCard } from "./components/DiskIoCard";
 import { TelemetryStatusCard } from "./components/TelemetryStatusCard";
 
 export function TelemetryDashboard({ raw, fieldMap, vm }) {
-  const [range, setRange] = useState("1h");
-
   const computed = useMemo(() => {
     if (vm) return vm;
     if (raw && fieldMap) return mapTelemetry(raw, fieldMap);
@@ -27,24 +25,7 @@ export function TelemetryDashboard({ raw, fieldMap, vm }) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl bg-slate-900/60 p-4 shadow-lg ring-1 ring-white/10">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-sm font-semibold text-slate-100">
-              Detalhes do Host: <span className="text-sky-300">{computed.host?.name}</span>
-            </div>
-            <div className="mt-1 text-xs text-slate-300">
-              {computed.host?.ip ? <>IP: {computed.host.ip}</> : null}
-              {computed.host?.os ? <>{" "} | OS: {computed.host.os}</> : null}
-              {computed.host?.uptime ? <>{" "} | Uptime: {computed.host.uptime}</> : null}
-            </div>
-          </div>
-
-          {/* Intervalo visual (placeholder futuro, por enquanto não altera a janela da API) */}
-        </div>
-      </div>
-
+    <div className="space-y-6 mt-2">
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="flex-1">
           <ResourceUsageCard data={computed.resources} host={computed.host} />
