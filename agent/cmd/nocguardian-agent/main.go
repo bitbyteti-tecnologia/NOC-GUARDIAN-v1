@@ -16,7 +16,7 @@ import (
 	"github.com/bitbyteti/noc-guardian/agent/internal/metrics"
 )
 
-const Version = "0.1.0"
+const Version = "0.1.1"
 
 func genID() string {
 	b := make([]byte, 16)
@@ -76,6 +76,12 @@ func main() {
 	flag.StringVar(&initCfgPath, "init-config", "", "write config to path and exit (optional)")
 	flag.Parse()
 
+	// Execução como serviço no Windows
+	if runtime.GOOS == "windows" && isWindowsService() {
+		runAsWindowsService(cfgPath, diskPath, intervalSec, serverURL, tenantID)
+		return
+	}
+
 	// init-config manual (opcional para troubleshooting)
 	if initCfgPath != "" {
 		if err := initConfig(initCfgPath, serverURL, tenantID); err != nil {
@@ -85,6 +91,12 @@ func main() {
 		return
 	}
 
+	if err := runAgent(cfgPath, diskPath, intervalSec, serverURL, tenantID, nil); err != nil {
+		log.Fatalf("agent error: %v", err)
+	}
+}
+
+func runAgent(cfgPath, diskPath string, intervalSec int, serverURL, tenantID string, stop <-chan struct{}) error {
 	// Carrega config
 	cfg, err := config.Load(cfgPath)
 
@@ -92,13 +104,13 @@ func main() {
 	if err != nil {
 		if os.IsNotExist(err) && serverURL != "" && tenantID != "" {
 			if err2 := initConfig(cfgPath, serverURL, tenantID); err2 != nil {
-				log.Fatalf("auto init-config error: %v", err2)
+				return fmt.Errorf("auto init-config error: %w", err2)
 			}
 			cfg, err = config.Load(cfgPath)
 		}
 	}
 	if err != nil {
-		log.Fatalf("config error: %v", err)
+		return fmt.Errorf("config error: %w", err)
 	}
 
 	// AgentID: gera e persiste se não existir
@@ -123,11 +135,23 @@ func main() {
 	defer ticker.Stop()
 
 	for {
+		select {
+		case <-stop:
+			log.Printf("shutdown requested")
+			return nil
+		default:
+		}
+
 		snap, err := metrics.Collect(diskPath)
 		if err != nil {
 			log.Printf("collect error: %v", err)
-			<-ticker.C
-			continue
+			select {
+			case <-ticker.C:
+				continue
+			case <-stop:
+				log.Printf("shutdown requested")
+				return nil
+			}
 		}
 
 		ts := snap.TS.Format(time.RFC3339)
@@ -186,6 +210,11 @@ func main() {
 			}
 		}
 
-		<-ticker.C
+		select {
+		case <-ticker.C:
+		case <-stop:
+			log.Printf("shutdown requested")
+			return nil
+		}
 	}
 }

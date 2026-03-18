@@ -19,35 +19,44 @@ type Snapshot struct {
 	MemTotalBytes float64
 	MemUsedBytes  float64
 
+	Services map[string]string
+
 	HasSys bool
 	System SystemInfo
 }
 
-func memUsedPercent() (float64, error) {
+type memStatusEx struct {
+	cbSize                  uint32
+	dwMemoryLoad            uint32
+	ullTotalPhys            uint64
+	ullAvailPhys            uint64
+	ullTotalPageFile        uint64
+	ullAvailPageFile        uint64
+	ullTotalVirtual         uint64
+	ullAvailVirtual         uint64
+	ullAvailExtendedVirtual uint64
+}
+
+func getMemStatusEx() (memStatusEx, error) {
 	// GlobalMemoryStatusEx
 	k32 := syscall.NewLazyDLL("kernel32.dll")
 	proc := k32.NewProc("GlobalMemoryStatusEx")
-
-	type memStatusEx struct {
-		cbSize                  uint32
-		dwMemoryLoad            uint32
-		ullTotalPhys            uint64
-		ullAvailPhys            uint64
-		ullTotalPageFile        uint64
-		ullAvailPageFile        uint64
-		ullTotalVirtual         uint64
-		ullAvailVirtual         uint64
-		ullAvailExtendedVirtual uint64
-	}
 
 	var st memStatusEx
 	st.cbSize = uint32(unsafe.Sizeof(st))
 
 	r1, _, err := proc.Call(uintptr(unsafe.Pointer(&st)))
 	if r1 == 0 {
+		return memStatusEx{}, err
+	}
+	return st, nil
+}
+
+func memUsedPercent() (float64, error) {
+	st, err := getMemStatusEx()
+	if err != nil {
 		return 0, err
 	}
-
 	// dwMemoryLoad já é percent usado (0-100)
 	used := float64(st.dwMemoryLoad)
 	if used < 0 {
@@ -123,20 +132,20 @@ func Collect(diskPath string) (Snapshot, error) {
 		MemUsedBytes:  usedBytes,
 		DiskUsedPct:   disk,
 		DiskPath:      diskPath,
+		Services:      map[string]string{},
 		HasSys:        hasSys,
 		System:        sys,
 	}, nil
 }
 
 func memInfo() (pct float64, total float64, used float64, err error) {
-	var mem windows.MemoryStatusEx
-	mem.Size = uint32(unsafe.Sizeof(mem))
-	if err := windows.GlobalMemoryStatusEx(&mem); err != nil {
+	st, err := getMemStatusEx()
+	if err != nil {
 		return 0, 0, 0, err
 	}
-	total = float64(mem.TotalPhys)
-	free := float64(mem.AvailPhys)
+	total = float64(st.ullTotalPhys)
+	free := float64(st.ullAvailPhys)
 	used = total - free
-	pct = float64(mem.MemoryLoad)
+	pct = float64(st.dwMemoryLoad)
 	return pct, total, used, nil
 }
