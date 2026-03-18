@@ -62,7 +62,7 @@ export default function Topbar() {
               <div className="flex-1 h-[2px] bg-gradient-to-r from-transparent to-slate-500 opacity-50" />
               <div className="relative flex items-center justify-center px-10 h-full">
                 <img
-                  src="/Logo NOC - Guardian-01-Transparente.png"
+                  src="/LogoNOCGuardian.png"
                   alt="NOC Guardian Logo"
                   className="relative z-10 h-[130px] w-auto object-contain drop-shadow-[0_0_18px_rgba(59,130,246,0.75)] transition-transform duration-300 group-hover:scale-105"
                   onError={(e) => { e.target.style.display = "none"; }}
