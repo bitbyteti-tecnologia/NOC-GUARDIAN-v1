@@ -268,15 +268,6 @@ export default function Customer() {
                 <th className="text-left px-4 py-3">Saúde</th>
                 <th className="text-left px-4 py-3 hidden md:table-cell">IP</th>
                 <th className="text-left px-4 py-3 hidden md:table-cell">OS</th>
-                <th className="text-left px-4 py-3 cursor-pointer" onClick={() => changeSort("cpu_percent")}>
-                  CPU
-                </th>
-                <th className="text-left px-4 py-3 cursor-pointer" onClick={() => changeSort("mem_used_pct")}>
-                  Mem
-                </th>
-                <th className="text-left px-4 py-3 cursor-pointer" onClick={() => changeSort("disk_used_pct")}>
-                  Disco
-                </th>
                 <th className="text-left px-4 py-3 cursor-pointer" onClick={() => changeSort("last_seen")}>
                   Último
                 </th>
@@ -320,15 +311,12 @@ export default function Customer() {
                       <td className="px-4 py-3 hidden md:table-cell text-slate-300">
                         {h.os || "-"}
                       </td>
-                      <td className="px-4 py-3">{fmtPct(h.cpu_percent)}</td>
-                      <td className="px-4 py-3">{fmtPct(h.mem_used_pct)}</td>
-                      <td className="px-4 py-3">{fmtPct(h.disk_used_pct)}</td>
                       <td className="px-4 py-3 text-slate-400">{fmtDate(h.last_seen)}</td>
                     </tr>
 
                     {isOpen && (
                       <tr className="border-b border-slate-800">
-                        <td colSpan={9} className="px-4 pb-4">
+                        <td colSpan={7} className="px-4 pb-4">
                           <HostDrawer
                             tenantId={tenantId}
                             host={expandedHostObj}
