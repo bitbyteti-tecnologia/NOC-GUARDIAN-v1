@@ -161,6 +161,10 @@ func runAgent(cfgPath, diskPath string, intervalSec int, serverURL, tenantID str
 			"cpu_percent":     {T: ts, V: snap.CPUPercent},
 			"mem_used_pct":    {T: ts, V: snap.MemUsedPct},
 			"disk_used_pct":   {T: ts, V: snap.DiskUsedPct},
+			"net_rx_bps":      {T: ts, V: snap.NetRxBps},
+			"net_tx_bps":      {T: ts, V: snap.NetTxBps},
+			"disk_read_bps":   {T: ts, V: snap.DiskReadBps},
+			"disk_write_bps":  {T: ts, V: snap.DiskWriteBps},
 		}
 
 		// ✅ Novas métricas de sistema (Linux e Windows)

@@ -21,6 +21,11 @@ type Snapshot struct {
 
 	Services map[string]string
 
+	NetRxBps      float64
+	NetTxBps      float64
+	DiskReadBps   float64
+	DiskWriteBps  float64
+
 	HasSys bool
 	System SystemInfo
 }
@@ -133,6 +138,10 @@ func Collect(diskPath string) (Snapshot, error) {
 		DiskUsedPct:   disk,
 		DiskPath:      diskPath,
 		Services:      map[string]string{},
+		NetRxBps:      0,
+		NetTxBps:      0,
+		DiskReadBps:   0,
+		DiskWriteBps:  0,
 		HasSys:        hasSys,
 		System:        sys,
 	}, nil

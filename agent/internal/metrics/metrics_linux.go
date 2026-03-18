@@ -24,6 +24,11 @@ type Snapshot struct {
 	MemTotalBytes float64
 	MemUsedBytes  float64
 
+	NetRxBps      float64
+	NetTxBps      float64
+	DiskReadBps   float64
+	DiskWriteBps  float64
+
 	Services map[string]string
 
 	HasSys bool
@@ -140,6 +145,8 @@ func diskUsedPercent(path string) (float64, error) {
 }
 
 func Collect(diskPath string) (Snapshot, error) {
+	ts := time.Now().UTC()
+
 	prev, err := readCPUTimes()
 	if err != nil {
 		return Snapshot{}, err
@@ -163,6 +170,9 @@ func Collect(diskPath string) (Snapshot, error) {
 		return Snapshot{}, err
 	}
 
+	netRxBps, netTxBps := netBps(ts)
+	diskReadBps, diskWriteBps := diskIoBps(ts, diskPath)
+
 	sys, hasSys := collectSystemInfo()
 
 	// Monitorar serviços específicos
@@ -173,13 +183,17 @@ func Collect(diskPath string) (Snapshot, error) {
 	}
 
 	return Snapshot{
-		TS:            time.Now().UTC(),
+		TS:            ts,
 		CPUPercent:    cpu,
 		MemUsedPct:    memPct,
 		MemTotalBytes: totalBytes,
 		MemUsedBytes:  usedBytes,
 		DiskUsedPct:   disk,
 		DiskPath:      diskPath,
+		NetRxBps:      netRxBps,
+		NetTxBps:      netTxBps,
+		DiskReadBps:   diskReadBps,
+		DiskWriteBps:  diskWriteBps,
 		Services:      services,
 		HasSys:        hasSys,
 		System:        sys,
@@ -230,4 +244,176 @@ func memInfo() (pct float64, total float64, used float64, err error) {
 	used = memTotal - memFree - buffers - cached
 	pct = (used / memTotal) * 100
 	return pct, memTotal, used, nil
+}
+
+var (
+	lastNetTS    time.Time
+	lastNetRx    float64
+	lastNetTx    float64
+	lastDiskTS   time.Time
+	lastDiskRead float64
+	lastDiskWrite float64
+)
+
+func netBps(now time.Time) (float64, float64) {
+	rx, tx, err := readNetBytes()
+	if err != nil {
+		return 0, 0
+	}
+	if lastNetTS.IsZero() {
+		lastNetTS = now
+		lastNetRx = rx
+		lastNetTx = tx
+		return 0, 0
+	}
+	dt := now.Sub(lastNetTS).Seconds()
+	if dt <= 0 {
+		return 0, 0
+	}
+	drx := rx - lastNetRx
+	dtx := tx - lastNetTx
+	if drx < 0 {
+		drx = 0
+	}
+	if dtx < 0 {
+		dtx = 0
+	}
+	lastNetTS = now
+	lastNetRx = rx
+	lastNetTx = tx
+	return drx / dt, dtx / dt
+}
+
+func diskIoBps(now time.Time, diskPath string) (float64, float64) {
+	readB, writeB, err := readDiskBytes(diskPath)
+	if err != nil {
+		return 0, 0
+	}
+	if lastDiskTS.IsZero() {
+		lastDiskTS = now
+		lastDiskRead = readB
+		lastDiskWrite = writeB
+		return 0, 0
+	}
+	dt := now.Sub(lastDiskTS).Seconds()
+	if dt <= 0 {
+		return 0, 0
+	}
+	dread := readB - lastDiskRead
+	dwrite := writeB - lastDiskWrite
+	if dread < 0 {
+		dread = 0
+	}
+	if dwrite < 0 {
+		dwrite = 0
+	}
+	lastDiskTS = now
+	lastDiskRead = readB
+	lastDiskWrite = writeB
+	return dread / dt, dwrite / dt
+}
+
+func readNetBytes() (float64, float64, error) {
+	f, err := os.Open("/proc/net/dev")
+	if err != nil {
+		return 0, 0, err
+	}
+	defer f.Close()
+
+	var rx, tx float64
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" || strings.HasPrefix(line, "Inter-") || strings.HasPrefix(line, "face") {
+			continue
+		}
+		parts := strings.Fields(line)
+		if len(parts) < 10 {
+			continue
+		}
+		iface := strings.TrimSuffix(parts[0], ":")
+		if iface == "lo" {
+			continue
+		}
+		rxVal, _ := strconv.ParseFloat(parts[1], 64)
+		txVal, _ := strconv.ParseFloat(parts[9], 64)
+		rx += rxVal
+		tx += txVal
+	}
+	if err := sc.Err(); err != nil {
+		return 0, 0, err
+	}
+	return rx, tx, nil
+}
+
+func readDiskBytes(diskPath string) (float64, float64, error) {
+	device, err := resolveDeviceForPath(diskPath)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	f, err := os.Open("/proc/diskstats")
+	if err != nil {
+		return 0, 0, err
+	}
+	defer f.Close()
+
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		fields := strings.Fields(sc.Text())
+		if len(fields) < 14 {
+			continue
+		}
+		name := fields[2]
+		if name != device {
+			continue
+		}
+		// sectors read (6) and written (10)
+		reads, _ := strconv.ParseFloat(fields[5], 64)
+		writes, _ := strconv.ParseFloat(fields[9], 64)
+		return reads * 512.0, writes * 512.0, nil
+	}
+	if err := sc.Err(); err != nil {
+		return 0, 0, err
+	}
+	return 0, 0, fmt.Errorf("device not found in /proc/diskstats: %s", device)
+}
+
+func resolveDeviceForPath(p string) (string, error) {
+	if p == "" {
+		p = "/"
+	}
+	mounts, err := os.Open("/proc/mounts")
+	if err != nil {
+		return "", err
+	}
+	defer mounts.Close()
+
+	var bestDev string
+	var bestMount string
+	sc := bufio.NewScanner(mounts)
+	for sc.Scan() {
+		fields := strings.Fields(sc.Text())
+		if len(fields) < 2 {
+			continue
+		}
+		dev := fields[0]
+		mp := fields[1]
+		if !strings.HasPrefix(p, mp) {
+			continue
+		}
+		if len(mp) > len(bestMount) {
+			bestMount = mp
+			bestDev = dev
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return "", err
+	}
+	if bestDev == "" {
+		return "", fmt.Errorf("mount not found for path: %s", p)
+	}
+
+	base := strings.TrimPrefix(bestDev, "/dev/")
+	return base, nil
 }
