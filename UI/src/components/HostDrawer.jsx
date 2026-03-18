@@ -61,6 +61,22 @@ export default function HostDrawer({
   const lastSeen = host?.last_seen;
 
   const [hostMeta, setHostMeta] = useState(null);
+  const [windowKey, setWindowKey] = useState("1h");
+
+  const WINDOW_OPTIONS = useMemo(
+    () => [
+      { label: "Tempo real", value: "5m", pollMs: 5000 },
+      { label: "30 min", value: "30m", pollMs: 10000 },
+      { label: "1h", value: "1h", pollMs: 15000 },
+      { label: "24h", value: "24h", pollMs: 60000 },
+    ],
+    []
+  );
+
+  const windowCfg = useMemo(() => {
+    const found = WINDOW_OPTIONS.find((o) => o.value === windowKey);
+    return found || WINDOW_OPTIONS[2]; // default 1h
+  }, [WINDOW_OPTIONS, windowKey]);
 
   // Carrega IP/OS/Uptime via endpoint real do dashboard-api (inventário latest)
   useEffect(() => {
@@ -122,9 +138,9 @@ export default function HostDrawer({
     api,
     tenantId,
     host: hostFull,
-    window: "1h",
+    window: windowCfg.value,
     enabled: open,
-    pollMs: 15000,
+    pollMs: windowCfg.pollMs,
   });
 
   if (!open) return null;
@@ -181,6 +197,20 @@ export default function HostDrawer({
 
       {/* Painel de Telemetria (único conteúdo "gráfico") */}
       <div className="mt-4">
+        <div className="mb-2 flex items-center justify-end gap-2 text-xs text-slate-300">
+          <span className="text-slate-400">Intervalo:</span>
+          <select
+            value={windowCfg.value}
+            onChange={(e) => setWindowKey(e.target.value)}
+            className="bg-slate-950/70 border border-slate-700 rounded px-2 py-1"
+          >
+            {WINDOW_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <TelemetryDashboard vm={telemetryVM} />
       </div>
     </div>

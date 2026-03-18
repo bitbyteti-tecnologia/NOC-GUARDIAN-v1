@@ -16,6 +16,21 @@ function Card({ title, value }) {
 function fmtDate(iso) {
   if (!iso) return "-";
   try {
+    if (iso instanceof Date) {
+      return new Intl.DateTimeFormat("pt-BR", {
+        dateStyle: "short",
+        timeStyle: "medium",
+        timeZone: "America/Sao_Paulo",
+      }).format(iso);
+    }
+    if (typeof iso === "number") {
+      const ms = iso > 10_000_000_000 ? iso : iso * 1000;
+      return new Intl.DateTimeFormat("pt-BR", {
+        dateStyle: "short",
+        timeStyle: "medium",
+        timeZone: "America/Sao_Paulo",
+      }).format(new Date(ms));
+    }
     return new Intl.DateTimeFormat("pt-BR", {
       dateStyle: "short",
       timeStyle: "medium",
@@ -76,6 +91,17 @@ export default function Customer() {
     });
     return arr;
   }, [hosts]);
+
+  const lastHeartbeat = useMemo(() => {
+    if (summary?.last_any_heartbeat) return summary.last_any_heartbeat;
+    const times = (Array.isArray(hosts) ? hosts : [])
+      .map((h) => h?.last_seen)
+      .filter(Boolean)
+      .map((t) => Date.parse(String(t)))
+      .filter((n) => Number.isFinite(n));
+    if (!times.length) return null;
+    return new Date(Math.max(...times));
+  }, [summary, hosts]);
 
   const agg = useMemo(() => {
     const arr = enrichedHosts;
@@ -188,7 +214,7 @@ export default function Customer() {
         <Card title="Hosts" value={summary?.total_hosts ?? "-"} />
         <Card title="Online" value={summary?.online ?? "-"} />
         <Card title="Offline" value={summary?.offline ?? "-"} />
-        <Card title="Último heartbeat" value={fmtDate(summary?.last_any_heartbeat)} />
+        <Card title="Último heartbeat" value={fmtDate(lastHeartbeat)} />
       </div>
 
       {/* cards de risco */}
