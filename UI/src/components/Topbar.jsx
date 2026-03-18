@@ -40,7 +40,7 @@ export default function Topbar() {
 
         <div className="flex items-center gap-3">
           <button
-            className="px-3 py-2 rounded hover:bg-slate-900"
+            className="md:hidden px-3 py-2 rounded hover:bg-slate-900 border border-slate-800"
             onClick={() => setOpen(!open)}
             aria-label="Menu"
             title="Menu"
@@ -60,21 +60,24 @@ export default function Topbar() {
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-2 ml-4">
-            <Link to="/" className="px-3 py-2 rounded-lg text-sm hover:bg-slate-900">Dashboard</Link>
+            <Link to="/" className="px-3 py-2 rounded-lg text-sm hover:bg-slate-900 border border-transparent hover:border-slate-800">Dashboard</Link>
 
             {/* Config dropdown (desktop) */}
             <div className="relative">
               <button
                 onClick={() => setCfgOpen(!cfgOpen)}
-                className="px-3 py-2 rounded-lg text-sm hover:bg-slate-900"
+                className="px-3 py-2 rounded-lg text-sm hover:bg-slate-900 border border-transparent hover:border-slate-800"
               >
                 Configurações ▾
               </button>
               {cfgOpen && (
-                <div className="absolute mt-2 w-56 bg-slate-950 border border-slate-800 rounded-xl p-2 shadow-lg">
+                <div className="absolute mt-2 w-64 bg-slate-950 border border-slate-800 rounded-xl p-2 shadow-lg">
                   <NavItem to="/sessions" label="Sessões" onClick={closeAll} />
                   {isGlobalAdmin && <NavItem to="/users" label="Usuários Globais" onClick={closeAll} />}
                   {isGlobalAdmin && <NavItem to="/create-tenant" label="Criar novo cliente" onClick={closeAll} />}
+                  {isTenantOperator && tenantId && (
+                    <NavItem to={`/tenant/${tenantId}/users`} label="Usuários do Cliente" onClick={closeAll} />
+                  )}
                   <NavItem to="/change-password" label="Alterar senha" onClick={closeAll} />
                 </div>
               )}
@@ -96,29 +99,23 @@ export default function Topbar() {
         </div>
       </div>
 
-      {/* Menu hamburger */}
+      {/* Menu hamburger (mobile) */}
       {open && (
-        <div className="px-4 pb-3 space-y-2 border-t border-slate-800">
-          <NavItem to="/" label="Dashboard" onClick={closeAll} />
-          <button
-            onClick={() => setCfgOpen(!cfgOpen)}
-            className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-900"
-          >
-            Configurações ▾
-          </button>
-          {cfgOpen && (
-            <div className="pl-2 space-y-1">
-              <NavItem to="/sessions" label="Sessões" onClick={closeAll} />
-              {isGlobalAdmin && <NavItem to="/users" label="Usuários Globais" onClick={closeAll} />}
-              {isGlobalAdmin && <NavItem to="/create-tenant" label="Criar novo cliente" onClick={closeAll} />}
-              {isTenantOperator && tenantId && (
-                <NavItem to={`/tenant/${tenantId}/users`} label="Usuários do Cliente" onClick={closeAll} />
-              )}
-              <NavItem to="/change-password" label="Alterar senha" onClick={closeAll} />
-            </div>
-          )}
-          <div className="pt-1">
-            <div className="px-3 py-1 text-xs text-slate-500">Downloads de agentes</div>
+        <div className="md:hidden border-t border-slate-800">
+          <div className="px-4 py-4 space-y-3">
+            <div className="text-xs uppercase tracking-wider text-slate-500">Navegação</div>
+            <NavItem to="/" label="Dashboard" onClick={closeAll} />
+
+            <div className="text-xs uppercase tracking-wider text-slate-500 pt-2">Configurações</div>
+            <NavItem to="/sessions" label="Sessões" onClick={closeAll} />
+            {isGlobalAdmin && <NavItem to="/users" label="Usuários Globais" onClick={closeAll} />}
+            {isGlobalAdmin && <NavItem to="/create-tenant" label="Criar novo cliente" onClick={closeAll} />}
+            {isTenantOperator && tenantId && (
+              <NavItem to={`/tenant/${tenantId}/users`} label="Usuários do Cliente" onClick={closeAll} />
+            )}
+            <NavItem to="/change-password" label="Alterar senha" onClick={closeAll} />
+
+            <div className="text-xs uppercase tracking-wider text-slate-500 pt-2">Downloads de agentes</div>
             <a className="block px-3 py-2 rounded-lg text-sm hover:bg-slate-900" href="/downloads/nocguardian-agent-windows-x64.msi" onClick={closeAll}>
               Windows (MSI)
             </a>
@@ -134,9 +131,10 @@ export default function Topbar() {
             <a className="block px-3 py-2 rounded-lg text-sm hover:bg-slate-900" href="/downloads/nocguardian-agent_aarch64.rpm" onClick={closeAll}>
               Linux ARM64 (rpm)
             </a>
-          </div>
-          <div className="text-xs text-slate-300 pt-2">
-            Tempo: <span className="text-slate-100">{sessionAge}</span>
+
+            <div className="text-xs text-slate-300 pt-2">
+              Tempo: <span className="text-slate-100">{sessionAge}</span>
+            </div>
           </div>
         </div>
       )}
