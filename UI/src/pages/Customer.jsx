@@ -50,6 +50,14 @@ export default function Customer() {
   const [osFilter, setOsFilter] = useState("all");
   const [sortKey, setSortKey] = useState("last_seen");
   const [sortDir, setSortDir] = useState("desc");
+  const downloads = [
+    { label: "Windows (MSI)", file: "nocguardian-agent.msi" },
+    { label: "Windows x64 (MSI)", file: "nocguardian-agent-windows-x64.msi" },
+    { label: "Linux ARM64 (.deb)", file: "nocguardian-agent_arm64.deb" },
+    { label: "Linux AMD64 (.deb)", file: "nocguardian-agent_amd64.deb" },
+    { label: "Linux aarch64 (.rpm)", file: "nocguardian-agent_aarch64.rpm" },
+    { label: "Linux x86_64 (.rpm)", file: "nocguardian-agent_x86_64.rpm" },
+  ];
 
   async function loadAll() {
     if (!tenantId) return;
@@ -205,18 +213,17 @@ export default function Customer() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-          <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-sm font-bold">Windows (MSI)</div>
-            <div className="text-xs text-slate-400 mt-1">nocguardian-agent.msi</div>
-          </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-sm font-bold">Linux ARM64 (.deb)</div>
-            <div className="text-xs text-slate-400 mt-1">nocguardian-agent_arm64.deb</div>
-          </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-sm font-bold">Linux AMD64 (.deb)</div>
-            <div className="text-xs text-slate-400 mt-1">nocguardian-agent_amd64.deb</div>
-          </div>
+          {downloads.map((d) => (
+            <a
+              key={d.file}
+              href={`/downloads/${d.file}`}
+              className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 hover:bg-slate-900 transition"
+              download
+            >
+              <div className="text-sm font-bold">{d.label}</div>
+              <div className="text-xs text-slate-400 mt-1">{d.file}</div>
+            </a>
+          ))}
         </div>
       </div>
 
