@@ -56,28 +56,30 @@ export default function Topbar() {
           </button>
         </div>
 
-        <Link to="/" className="relative z-10 flex items-center justify-center flex-1">
-          <div className="flex items-center justify-center w-full max-w-5xl h-full px-4">
-            <div className="flex-1 h-[2px] bg-gradient-to-r from-transparent to-slate-500 opacity-50" />
-            <div className="relative flex items-center justify-center px-10 h-full">
-              <div
-                className="absolute inset-0 bg-gradient-to-b from-slate-900 to-black border-x border-slate-700"
+        <div className="absolute left-1/2 -translate-x-1/2 z-10 w-full max-w-5xl px-4">
+          <Link to="/" className="flex items-center justify-center w-full">
+            <div className="flex items-center justify-center w-full max-w-5xl h-full px-4">
+              <div className="flex-1 h-[2px] bg-gradient-to-r from-transparent to-slate-500 opacity-50" />
+              <div className="relative flex items-center justify-center px-10 h-full">
+                <div
+                  className="absolute inset-0 bg-gradient-to-b from-slate-900 to-black border-x border-slate-700"
                 style={{
                   clipPath: "polygon(0% 0%, 100% 0%, 85% 100%, 15% 100%)",
                   borderBottom: "1px solid rgba(100, 116, 139, 0.5)",
                   boxShadow: "0 0 20px rgba(0,0,0,0.8)",
                 }}
               />
-              <img
-                src="/Logo NOC - Guardian-01-Transparente.png"
-                alt="NOC Guardian Logo"
-                className="relative z-10 h-12 w-auto object-contain drop-shadow-[0_0_8px_rgba(59,130,246,0.5)] transition-transform duration-300 group-hover:scale-105"
-                onError={(e) => { e.target.style.display = "none"; }}
-              />
+                <img
+                  src="/Logo NOC - Guardian-01-Transparente.png"
+                  alt="NOC Guardian Logo"
+                  className="relative z-10 h-20 w-auto object-contain drop-shadow-[0_0_8px_rgba(59,130,246,0.5)] transition-transform duration-300 group-hover:scale-105"
+                  onError={(e) => { e.target.style.display = "none"; }}
+                />
+              </div>
+              <div className="flex-1 h-[2px] bg-gradient-to-l from-transparent to-slate-500 opacity-50" />
             </div>
-            <div className="flex-1 h-[2px] bg-gradient-to-l from-transparent to-slate-500 opacity-50" />
-          </div>
-        </Link>
+          </Link>
+        </div>
 
         <div className="flex items-center gap-3 relative z-10">
           <div className="hidden md:block text-xs text-slate-300 font-mono tracking-wide">
