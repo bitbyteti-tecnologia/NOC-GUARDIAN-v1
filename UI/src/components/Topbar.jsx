@@ -62,7 +62,7 @@ export default function Topbar() {
               <div className="flex-1 h-[2px] bg-gradient-to-r from-transparent to-slate-500 opacity-50" />
               <div className="relative flex items-center justify-center px-10 h-full">
                 <img
-                  src="/escudo nocguardian.png"
+                  src="/escudo%20nocguardian.png"
                   alt="Escudo NOC Guardian"
                   className="pointer-events-none absolute left-1/2 top-1/2 h-[130px] w-auto -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_0_12px_rgba(59,130,246,0.4)]"
                 />
