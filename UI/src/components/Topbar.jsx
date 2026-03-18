@@ -103,26 +103,13 @@ export default function Topbar() {
               )}
               <NavItem to="/change-password" label="Alterar senha" onClick={closeAll} />
 
-              <div className="text-xs uppercase tracking-wider text-slate-500 pt-3">Downloads de agentes</div>
-              <a className="block px-3 py-2 rounded-lg text-sm hover:bg-slate-900" href="/downloads/nocguardian-agent-windows-x64.msi" onClick={closeAll}>
-                Windows (MSI)
-              </a>
-              <a className="block px-3 py-2 rounded-lg text-sm hover:bg-slate-900" href="/downloads/nocguardian-agent_amd64.deb" onClick={closeAll}>
-                Linux AMD64 (.deb)
-              </a>
-              <a className="block px-3 py-2 rounded-lg text-sm hover:bg-slate-900" href="/downloads/nocguardian-agent_arm64.deb" onClick={closeAll}>
-                Linux ARM64 (.deb)
-              </a>
-              <a className="block px-3 py-2 rounded-lg text-sm hover:bg-slate-900" href="/downloads/nocguardian-agent_x86_64.rpm" onClick={closeAll}>
-                Linux x86_64 (rpm)
-              </a>
-              <a className="block px-3 py-2 rounded-lg text-sm hover:bg-slate-900" href="/downloads/nocguardian-agent_aarch64.rpm" onClick={closeAll}>
-                Linux ARM64 (rpm)
-              </a>
             </div>
 
-            <div className="px-4 py-3 border-t border-slate-800 text-xs text-slate-300">
-              Tempo: <span className="text-slate-100">{sessionAge}</span>
+            <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-300">
+              <div>
+                Tempo: <span className="text-slate-100">{sessionAge}</span>
+              </div>
+              <LogoutButton />
             </div>
           </aside>
         </>
