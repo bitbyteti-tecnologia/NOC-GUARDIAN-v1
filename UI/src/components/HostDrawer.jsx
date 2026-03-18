@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { TelemetryDashboard } from "../features/telemetry/TelemetryDashboard";
 import { useTelemetryFromApi } from "../features/telemetry/integrations/useTelemetryFromApi";
+import { buildHostHealthSummary, computeHostSeverity, severityBadgeClasses, severityLabel } from "../features/telemetry/health";
 
 function Badge({ status }) {
   const ok = status === "ONLINE";
@@ -114,6 +115,8 @@ export default function HostDrawer({
   }, [open, tenantId, hostname, api]);
 
   const hostFull = useMemo(() => (hostMeta ? { ...host, ...hostMeta } : host), [host, hostMeta]);
+  const severity = computeHostSeverity(hostFull || host || {});
+  const healthSummary = buildHostHealthSummary(hostFull || host || {});
 
   // VM do painel (dados reais + polling)
   const { vm: telemetryVM } = useTelemetryFromApi({
@@ -164,10 +167,24 @@ export default function HostDrawer({
           </div>
         </div>
 
-        {/* Sem botão fechar — fecha clicando novamente na linha (Customer.jsx) */}
-              </div>
+        {/* Indicador de saúde geral */}
+        <div className="shrink-0">
+          <div
+            className={[
+              "inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold",
+              severityBadgeClasses(severity),
+            ].join(" ")}
+          >
+            <span>{severityLabel(severity)}</span>
+          </div>
+        </div>
+      </div>
 
-      {/* KPIs rápidos */}
+      {/* Resumo de risco + KPIs rápidos */}
+      <div className="mt-3 text-xs text-slate-400">
+        {healthSummary}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
         <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
           <div className="text-xs text-slate-400 font-semibold">CPU</div>
