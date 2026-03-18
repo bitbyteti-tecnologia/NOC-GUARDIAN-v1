@@ -36,7 +36,7 @@ export default function Topbar() {
 
   return (
     <div className="sticky top-0 z-40 bg-[#020617] backdrop-blur">
-      <div className="relative px-4 md:px-6 h-[260px] flex items-center justify-between overflow-visible">
+      <div className="relative px-4 md:px-6 h-[200px] flex items-center justify-between overflow-visible">
         {/* subtle pattern */}
         <div
           className="pointer-events-none absolute inset-0 opacity-10"
@@ -64,13 +64,12 @@ export default function Topbar() {
                 <img
                   src="/escudo-nocguardian.png"
                   alt="Escudo NOC Guardian"
-                  className="pointer-events-none absolute left-1/2 top-1/2 h-[220px] w-auto -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_0_28px_rgba(59,130,246,0.8)]"
+                  className="pointer-events-none absolute left-1/2 top-1/2 h-[170px] w-auto -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_0_22px_rgba(59,130,246,0.75)]"
                 />
-                <div className="pointer-events-none absolute left-1/2 top-[60%] h-[120px] w-[6px] -translate-x-1/2 bg-gradient-to-b from-sky-400/80 via-sky-400/30 to-transparent blur-md" />
                 <img
                   src="/Logo NOC - Guardian-01-Transparente.png"
                   alt="NOC Guardian Logo"
-                  className="relative z-10 h-[170px] w-auto object-contain drop-shadow-[0_0_20px_rgba(59,130,246,0.8)] transition-transform duration-300 group-hover:scale-105"
+                  className="relative z-10 h-[130px] w-auto object-contain drop-shadow-[0_0_18px_rgba(59,130,246,0.75)] transition-transform duration-300 group-hover:scale-105"
                   onError={(e) => { e.target.style.display = "none"; }}
                 />
               </div>
@@ -102,7 +101,7 @@ export default function Topbar() {
         <>
           <div className="fixed inset-0 bg-black/50 z-50" onClick={closeAll} />
           <aside
-            className="fixed left-0 top-[260px] h-[calc(100vh-260px)] w-80 max-w-[85vw] bg-slate-950 border-r border-slate-800 z-[60] flex flex-col"
+            className="fixed left-0 top-[200px] h-[calc(100vh-200px)] w-80 max-w-[85vw] bg-slate-950 border-r border-slate-800 z-[60] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
