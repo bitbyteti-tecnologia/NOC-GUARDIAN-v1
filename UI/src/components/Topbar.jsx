@@ -37,8 +37,7 @@ export default function Topbar() {
   return (
     <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
       <div className="px-4 md:px-6 py-3 flex items-center justify-between">
-
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-56">
           <button
             className="px-3 py-2 rounded hover:bg-slate-900 border border-slate-800"
             onClick={() => setOpen(!open)}
@@ -47,19 +46,16 @@ export default function Topbar() {
           >
             ☰
           </button>
-
-          <Link to="/" className="flex items-center gap-3 group">
-            <img 
-              src="/Logo NOC - Guardian-01-Transparente.png" 
-              alt="Logo" 
-              className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-            <div className="font-bold text-lg hidden sm:block tracking-tight text-white italic">NOC Guardian</div>
-          </Link>
-
-          {/* Desktop nav removido (menu lateral unificado) */}
         </div>
+
+        <Link to="/" className="flex items-center justify-center group flex-1">
+          <img
+            src="/Logo NOC - Guardian-01-Transparente.png"
+            alt="Logo"
+            className="h-20 w-auto object-contain transition-transform group-hover:scale-105"
+            onError={(e) => { e.target.style.display = "none"; }}
+          />
+        </Link>
 
         <div className="flex items-center gap-3">
           <div className="hidden md:block text-xs text-slate-300">
