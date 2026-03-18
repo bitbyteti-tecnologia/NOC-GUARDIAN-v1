@@ -90,7 +90,8 @@ func HostInventoryLatestHandler(w http.ResponseWriter, r *http.Request) {
 
 func invTenantDBName(master *sql.DB, tenantID string) (string, error) {
     var dbName sql.NullString
-    err := master.QueryRow(`SELECT db_name FROM public.tenants WHERE id = $1`, tenantID).Scan(&dbName)
+    // Não fixa schema (evita erro se search_path/schema diferirem do esperado)
+    err := master.QueryRow(`SELECT db_name FROM tenants WHERE id = $1`, tenantID).Scan(&dbName)
     if err != nil {
         return "", err
     }

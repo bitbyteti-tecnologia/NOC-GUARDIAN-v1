@@ -162,7 +162,8 @@ func tenantDBName(ctx context.Context, cfg Config, tenantId string) (string, err
 	defer master.Close()
 
 	var dbname string
-	q := `SELECT db_name FROM public.tenants WHERE id = $1`
+	// Não fixa schema (evita erro se search_path/schema diferirem do esperado)
+	q := `SELECT db_name FROM tenants WHERE id = $1`
 	c, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	if err := master.QueryRowContext(c, q, tenantId).Scan(&dbname); err != nil {
@@ -205,7 +206,7 @@ WITH last_seen AS (
   SELECT
     labels->>'hostname' AS hostname,
     max(time) AS last_heartbeat
-  FROM public.metrics
+  FROM metrics
   WHERE metric = 'agent_heartbeat'
   GROUP BY labels->>'hostname'
 )
@@ -253,7 +254,7 @@ WITH last_per_metric AS (
     metric,
     time,
     value
-  FROM public.metrics
+  FROM metrics
   WHERE metric IN ('cpu_percent','mem_used_pct','disk_used_pct','agent_heartbeat')
   ORDER BY (labels->>'hostname'), metric, time DESC
 ),
@@ -346,7 +347,7 @@ func handleSeries(ctx context.Context, cfg Config, tenantId, hostname, metricNam
 SELECT
   time_bucket('%s', time) AS bucket,
   avg(value) AS v
-FROM public.metrics
+FROM metrics
 WHERE metric = $1
   AND labels->>'hostname' = $2
   AND time >= now() - $3::interval
