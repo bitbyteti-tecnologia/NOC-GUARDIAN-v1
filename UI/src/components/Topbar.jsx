@@ -75,7 +75,7 @@ export default function Topbar() {
               src="/Logo NOC - Guardian-01-Transparente.png"
               alt="Logo"
               className="relative h-[110px] w-auto object-contain transition-transform group-hover:scale-105"
-              onError={(e) => { e.target.style.display = \"none\"; }}
+              onError={(e) => { e.target.style.display = "none"; }}
             />
           </div>
         </Link>

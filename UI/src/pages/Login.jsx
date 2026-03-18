@@ -95,13 +95,13 @@ export default function Login() {
               {/* Log de status "hacker" */}
               <div className="mt-4 pt-4 border-t border-slate-800 space-y-1">
                 <p className="text-[10px] text-slate-500 uppercase tracking-tighter">
-                  > IP: {Math.floor(Math.random()*255)}.{Math.floor(Math.random()*255)}.{Math.floor(Math.random()*255)}.{Math.floor(Math.random()*255)}
+                  {"\u203A "}IP: {Math.floor(Math.random()*255)}.{Math.floor(Math.random()*255)}.{Math.floor(Math.random()*255)}.{Math.floor(Math.random()*255)}
                 </p>
                 <p className="text-[10px] text-slate-500 uppercase tracking-tighter">
-                  > NODE: NOC-SVR-PRD-{Math.floor(Math.random()*999)}
+                  {"\u203A "}NODE: NOC-SVR-PRD-{Math.floor(Math.random()*999)}
                 </p>
                 <p className="text-[10px] text-emerald-500/70 uppercase tracking-tighter animate-bounce">
-                  > ENCRYPTION: ACTIVE
+                  {"\u203A "}ENCRYPTION: ACTIVE
                 </p>
               </div>
             </div>
