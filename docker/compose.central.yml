@@ -31,8 +31,6 @@ services:
       - PGHOST=db
     build:
       context: ../central
-    env_file:
-      - ../central/.env
     depends_on:
       db:
         condition: service_healthy
