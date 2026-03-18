@@ -52,7 +52,6 @@ export default function Customer() {
   const [sortDir, setSortDir] = useState("desc");
   const downloads = [
     { label: "Windows (MSI)", file: "nocguardian-agent.msi" },
-    { label: "Windows x64 (MSI)", file: "nocguardian-agent-windows-x64.msi" },
     { label: "Linux ARM64 (.deb)", file: "nocguardian-agent_arm64.deb" },
     { label: "Linux AMD64 (.deb)", file: "nocguardian-agent_amd64.deb" },
     { label: "Linux aarch64 (.rpm)", file: "nocguardian-agent_aarch64.rpm" },
