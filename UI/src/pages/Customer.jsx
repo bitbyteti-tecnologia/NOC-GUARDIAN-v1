@@ -188,7 +188,7 @@ export default function Customer() {
         <Card title="Hosts" value={summary?.total_hosts ?? "-"} />
         <Card title="Online" value={summary?.online ?? "-"} />
         <Card title="Offline" value={summary?.offline ?? "-"} />
-        <Card title="Último heartbeat" value={fmtDate(summary?.last_heartbeat)} />
+        <Card title="Último heartbeat" value={fmtDate(summary?.last_any_heartbeat)} />
       </div>
 
       {/* cards de risco */}
