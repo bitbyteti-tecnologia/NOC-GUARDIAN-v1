@@ -36,10 +36,16 @@ export default function Topbar() {
 
   return (
     <div className="sticky top-0 z-40 border-b border-slate-800 bg-gradient-to-b from-slate-950 via-slate-900/90 to-slate-950 backdrop-blur">
-      <div className="relative px-4 md:px-6 h-[150px] flex items-center justify-between">
-        {/* decorative lines */}
-        <div className="pointer-events-none absolute inset-x-0 top-3 h-px bg-gradient-to-r from-transparent via-slate-600/60 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-3 h-px bg-gradient-to-r from-transparent via-slate-700/40 to-transparent" />
+      <div className="relative px-4 md:px-6 h-[150px] flex items-center justify-between overflow-hidden">
+        {/* top/bottom long lines */}
+        <div className="pointer-events-none absolute left-0 right-0 top-2 h-px bg-gradient-to-r from-transparent via-slate-500/70 to-transparent" />
+        <div className="pointer-events-none absolute left-0 right-0 bottom-2 h-px bg-gradient-to-r from-transparent via-slate-600/50 to-transparent" />
+
+        {/* angled corners to mimic frame */}
+        <div className="pointer-events-none absolute left-8 top-2 h-4 w-16 border-t border-l border-slate-500/60 skew-x-[-20deg]" />
+        <div className="pointer-events-none absolute right-8 top-2 h-4 w-16 border-t border-r border-slate-500/60 skew-x-[20deg]" />
+        <div className="pointer-events-none absolute left-8 bottom-2 h-4 w-16 border-b border-l border-slate-600/50 skew-x-[20deg]" />
+        <div className="pointer-events-none absolute right-8 bottom-2 h-4 w-16 border-b border-r border-slate-600/50 skew-x-[-20deg]" />
         <div className="flex items-center gap-3 w-56">
           <button
             className="px-3 py-2 rounded hover:bg-slate-900 border border-slate-800"
@@ -52,20 +58,24 @@ export default function Topbar() {
         </div>
 
         <Link to="/" className="flex items-center justify-center group flex-1">
-          <div className="relative px-10 py-3">
+          <div className="relative px-12 py-2">
+            {/* central plate with angled corners */}
             <div
-              className="absolute inset-0 border border-slate-600/60 bg-slate-950/70"
+              className="absolute inset-0 border border-slate-500/60 bg-slate-950/80"
               style={{
-                clipPath: "polygon(4% 0, 96% 0, 100% 50%, 96% 100%, 4% 100%, 0 50%)",
-                boxShadow: "0 0 30px rgba(59,130,246,0.25)",
+                clipPath: "polygon(6% 0, 94% 0, 100% 50%, 94% 100%, 6% 100%, 0 50%)",
+                boxShadow: "0 0 40px rgba(59,130,246,0.25)",
               }}
             />
-            <div className="absolute left-1/2 top-1/2 h-[2px] w-[65%] -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-transparent via-sky-400/60 to-transparent" />
+            {/* glow line */}
+            <div className="absolute left-1/2 top-1/2 h-[2px] w-[70%] -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-transparent via-sky-400/80 to-transparent" />
+            {/* subtle speckle band */}
+            <div className="absolute left-1/2 top-1/2 h-[18px] w-[75%] -translate-x-1/2 -translate-y-1/2 opacity-20 bg-[radial-gradient(circle_at_20%_40%,rgba(148,163,184,0.6),transparent_40%),radial-gradient(circle_at_80%_60%,rgba(148,163,184,0.5),transparent_45%)]" />
             <img
               src="/Logo NOC - Guardian-01-Transparente.png"
               alt="Logo"
               className="relative h-[110px] w-auto object-contain transition-transform group-hover:scale-105"
-              onError={(e) => { e.target.style.display = "none"; }}
+              onError={(e) => { e.target.style.display = \"none\"; }}
             />
           </div>
         </Link>
