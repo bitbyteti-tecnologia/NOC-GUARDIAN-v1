@@ -4,15 +4,6 @@ import api from "../lib/api";
 import HostDrawer from "../components/HostDrawer";
 import { computeHostSeverity } from "../features/telemetry/health";
 
-function Card({ title, value }) {
-  return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-      <div className="text-xs text-slate-400 font-semibold">{title}</div>
-      <div className="text-xl font-extrabold text-slate-100 mt-1">{value}</div>
-    </div>
-  );
-}
-
 function fmtDate(iso) {
   if (!iso) return "-";
   try {
@@ -41,25 +32,19 @@ function fmtDate(iso) {
   }
 }
 
-function fmtPct(v) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return "-";
-  return `${n.toFixed(2)}%`;
-}
-
 export default function Customer() {
   const params = useParams();
   const tenantId = params.tenantId || params.id || params.tenantID || params.tenant || "";
 
   const [summary, setSummary] = useState(null);
   const [hosts, setHosts] = useState([]);
-  const [expandedHost, setExpandedHost] = useState(""); // hostname
+  const [selectedHost, setSelectedHost] = useState(""); // hostname
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [severityFilter, setSeverityFilter] = useState("all");
   const [osFilter, setOsFilter] = useState("all");
-  const [sortKey, setSortKey] = useState("last_seen");
-  const [sortDir, setSortDir] = useState("desc");
+  const sortKey = "last_seen";
+  const sortDir = "desc";
 
   async function loadAll() {
     if (!tenantId) return;
@@ -84,14 +69,6 @@ export default function Customer() {
     // eslint-disable-next-line
   }, [tenantId]);
 
-  const enrichedHosts = useMemo(() => {
-    const arr = Array.isArray(hosts) ? hosts.map((h) => ({ ...h })) : [];
-    arr.forEach((h) => {
-      h._severity = computeHostSeverity(h);
-    });
-    return arr;
-  }, [hosts]);
-
   const lastHeartbeat = useMemo(() => {
     if (summary?.last_any_heartbeat) return summary.last_any_heartbeat;
     const times = (Array.isArray(hosts) ? hosts : [])
@@ -102,27 +79,6 @@ export default function Customer() {
     if (!times.length) return null;
     return new Date(Math.max(...times));
   }, [summary, hosts]);
-
-  const agg = useMemo(() => {
-    const arr = enrichedHosts;
-    const total = arr.length || 0;
-    if (!total) {
-      return {
-        highCpuPct: "-",
-        highMemPct: "-",
-        highDiskPct: "-",
-      };
-    }
-    const highCpu = arr.filter((h) => Number(h.cpu_percent) >= 80).length;
-    const highMem = arr.filter((h) => Number(h.mem_used_pct) >= 80).length;
-    const highDisk = arr.filter((h) => Number(h.disk_used_pct) >= 90).length;
-    const toPct = (n) => `${((n / total) * 100).toFixed(0)}%`;
-    return {
-      highCpuPct: toPct(highCpu),
-      highMemPct: toPct(highMem),
-      highDiskPct: toPct(highDisk),
-    };
-  }, [enrichedHosts]);
 
   const hostsSorted = useMemo(() => {
     const arr = Array.isArray(hosts) ? [...hosts] : [];
@@ -170,24 +126,15 @@ export default function Customer() {
     return filtered;
   }, [hosts, statusFilter, severityFilter, osFilter, sortKey, sortDir]);
 
-  function toggleRow(hostname) {
-    setExpandedHost((cur) => (cur === hostname ? "" : hostname));
-  }
+  useEffect(() => {
+    if (!selectedHost && hostsSorted.length) {
+      setSelectedHost(hostsSorted[0].hostname);
+    }
+  }, [hostsSorted, selectedHost]);
 
-  function changeSort(key) {
-    setSortKey((curKey) => {
-      if (curKey === key) {
-        setSortDir((curDir) => (curDir === "asc" ? "desc" : "asc"));
-        return curKey;
-      }
-      setSortDir("desc");
-      return key;
-    });
-  }
-
-  const expandedHostObj = useMemo(
-    () => hostsSorted.find((x) => x.hostname === expandedHost),
-    [hostsSorted, expandedHost]
+  const selectedHostObj = useMemo(
+    () => hostsSorted.find((x) => x.hostname === selectedHost),
+    [hostsSorted, selectedHost]
   );
 
   return (
@@ -209,48 +156,15 @@ export default function Customer() {
         </button>
       </div>
 
-      {/* cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card title="Hosts" value={summary?.total_hosts ?? "-"} />
-        <Card title="Online" value={summary?.online ?? "-"} />
-        <Card title="Offline" value={summary?.offline ?? "-"} />
-        <Card title="Último heartbeat" value={fmtDate(lastHeartbeat)} />
-      </div>
-
-      {/* cards de risco */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card title="% Hosts CPU ≥ 80%" value={agg.highCpuPct} />
-        <Card title="% Hosts Mem ≥ 80%" value={agg.highMemPct} />
-        <Card title="% Hosts Disco ≥ 90%" value={agg.highDiskPct} />
-      </div>
-
-      {/* downloads (mantém seu bloco atual sem mexer) */}
+      {/* Seleção de host + resumo minimalista */}
       <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-        <div className="font-semibold text-slate-100">Downloads de Agentes</div>
-        <div className="text-xs text-slate-400 mt-1">
-          Instale o agente no Windows ou Linux para começar a coletar métricas.
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-          <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-sm font-bold">Windows (MSI)</div>
-            <div className="text-xs text-slate-400 mt-1">nocguardian-agent.msi</div>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold text-slate-100">Host selecionado</div>
+            <div className="text-xs text-slate-400 mt-1">
+              Último heartbeat: <span className="text-slate-200">{fmtDate(lastHeartbeat)}</span>
+            </div>
           </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-sm font-bold">Linux ARM64 (.deb)</div>
-            <div className="text-xs text-slate-400 mt-1">nocguardian-agent_arm64.deb</div>
-          </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-sm font-bold">Linux AMD64 (.deb)</div>
-            <div className="text-xs text-slate-400 mt-1">nocguardian-agent_amd64.deb</div>
-          </div>
-        </div>
-      </div>
-
-      {/* HOSTS table + inline drawer */}
-      <div className="rounded-xl border border-slate-800 bg-slate-950/50 overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-800 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="font-semibold text-slate-100">Hosts</div>
           <div className="flex flex-wrap gap-2 text-xs">
             <select
               value={statusFilter}
@@ -280,95 +194,34 @@ export default function Customer() {
               <option value="linux">Linux</option>
               <option value="windows">Windows</option>
             </select>
+            <select
+              value={selectedHost}
+              onChange={(e) => setSelectedHost(e.target.value)}
+              className="bg-slate-950/70 border border-slate-700 rounded px-2 py-1"
+            >
+              {hostsSorted.map((h) => (
+                <option key={h.hostname} value={h.hostname}>
+                  {h.hostname}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="text-slate-400">
-              <tr className="border-b border-slate-800">
-                <th className="text-left px-4 py-3 cursor-pointer" onClick={() => changeSort("hostname")}>
-                  Hostname
-                </th>
-                <th className="text-left px-4 py-3">Status</th>
-                <th className="text-left px-4 py-3">Saúde</th>
-                <th className="text-left px-4 py-3 hidden md:table-cell">IP</th>
-                <th className="text-left px-4 py-3 hidden md:table-cell">OS</th>
-                <th className="text-left px-4 py-3 cursor-pointer" onClick={() => changeSort("last_seen")}>
-                  Último
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="text-slate-200">
-              {hostsSorted.map((h) => {
-                const isOpen = expandedHost === h.hostname;
-                return (
-                  <React.Fragment key={h.hostname}>
-                    <tr
-                      className={[
-                        "border-b border-slate-800 cursor-pointer hover:bg-slate-900/40",
-                        isOpen ? "bg-slate-900/30" : "",
-                      ].join(" ")}
-                      onClick={() => toggleRow(h.hostname)}
-                      title="Clique para abrir/fechar detalhes do host"
-                    >
-                      <td className="px-4 py-3 font-semibold">{h.hostname}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold border
-                          ${h.status === "ONLINE"
-                            ? "bg-emerald-500/15 text-emerald-200 border-emerald-500/30"
-                            : "bg-amber-500/15 text-amber-200 border-amber-500/30"}`}>
-                          {h.status || "-"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs font-semibold">
-                          {computeHostSeverity(h) === "critical"
-                            ? "CRÍTICO"
-                            : computeHostSeverity(h) === "warning"
-                            ? "ATENÇÃO"
-                            : "OK"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell text-slate-300">
-                        {h.ip || h.ip_address || "-"}
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell text-slate-300">
-                        {h.os || "-"}
-                      </td>
-                      <td className="px-4 py-3 text-slate-400">{fmtDate(h.last_seen)}</td>
-                    </tr>
-
-                    {isOpen && (
-                      <tr className="border-b border-slate-800">
-                        <td colSpan={7} className="px-4 pb-4">
-                          <HostDrawer
-                            tenantId={tenantId}
-                            host={expandedHostObj}
-                            open={true}
-                            onClose={() => setExpandedHost("")}
-                            api={api}
-                            variant="inline"
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-
-              {hostsSorted.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-4 text-slate-400">
-                    Nenhum host encontrado.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
+
+      {/* Telemetria do host selecionado */}
+      {selectedHostObj ? (
+        <HostDrawer
+          tenantId={tenantId}
+          host={selectedHostObj}
+          open={true}
+          onClose={() => {}}
+          api={api}
+          variant="inline"
+        />
+      ) : (
+        <div className="text-sm text-slate-400">Nenhum host encontrado.</div>
+      )}
     </div>
   );
 }

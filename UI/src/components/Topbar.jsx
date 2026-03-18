@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import useMe from "../hooks/useMe";
 import useSessionAge from "../hooks/useSessionAge";
@@ -22,6 +22,12 @@ export default function Topbar() {
   const { me } = useMe();
   const sessionAge = useSessionAge();
   const isGlobalAdmin = me && (me.role === "superadmin" || me.role === "support");
+  const { pathname } = useLocation();
+  const tenantId = useMemo(() => {
+    const m = String(pathname || "").match(/^\/tenant\/([^/]+)/);
+    return m ? m[1] : "";
+  }, [pathname]);
+  const isTenantOperator = me && me.role === "admin" && me.tenant_id === tenantId;
 
   const [open, setOpen] = useState(false);
   const [cfgOpen, setCfgOpen] = useState(false);
@@ -34,7 +40,7 @@ export default function Topbar() {
 
         <div className="flex items-center gap-3">
           <button
-            className="md:hidden px-3 py-2 rounded hover:bg-slate-900"
+            className="px-3 py-2 rounded hover:bg-slate-900"
             onClick={() => setOpen(!open)}
             aria-label="Menu"
             title="Menu"
@@ -90,9 +96,9 @@ export default function Topbar() {
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Menu hamburger */}
       {open && (
-        <div className="md:hidden px-4 pb-3 space-y-2">
+        <div className="px-4 pb-3 space-y-2 border-t border-slate-800">
           <NavItem to="/" label="Dashboard" onClick={closeAll} />
           <button
             onClick={() => setCfgOpen(!cfgOpen)}
@@ -105,9 +111,30 @@ export default function Topbar() {
               <NavItem to="/sessions" label="Sessões" onClick={closeAll} />
               {isGlobalAdmin && <NavItem to="/users" label="Usuários Globais" onClick={closeAll} />}
               {isGlobalAdmin && <NavItem to="/create-tenant" label="Criar novo cliente" onClick={closeAll} />}
+              {isTenantOperator && tenantId && (
+                <NavItem to={`/tenant/${tenantId}/users`} label="Usuários do Cliente" onClick={closeAll} />
+              )}
               <NavItem to="/change-password" label="Alterar senha" onClick={closeAll} />
             </div>
           )}
+          <div className="pt-1">
+            <div className="px-3 py-1 text-xs text-slate-500">Downloads de agentes</div>
+            <a className="block px-3 py-2 rounded-lg text-sm hover:bg-slate-900" href="/downloads/nocguardian-agent-windows-x64.msi" onClick={closeAll}>
+              Windows (MSI)
+            </a>
+            <a className="block px-3 py-2 rounded-lg text-sm hover:bg-slate-900" href="/downloads/nocguardian-agent_amd64.deb" onClick={closeAll}>
+              Linux AMD64 (.deb)
+            </a>
+            <a className="block px-3 py-2 rounded-lg text-sm hover:bg-slate-900" href="/downloads/nocguardian-agent_arm64.deb" onClick={closeAll}>
+              Linux ARM64 (.deb)
+            </a>
+            <a className="block px-3 py-2 rounded-lg text-sm hover:bg-slate-900" href="/downloads/nocguardian-agent_x86_64.rpm" onClick={closeAll}>
+              Linux x86_64 (rpm)
+            </a>
+            <a className="block px-3 py-2 rounded-lg text-sm hover:bg-slate-900" href="/downloads/nocguardian-agent_aarch64.rpm" onClick={closeAll}>
+              Linux ARM64 (rpm)
+            </a>
+          </div>
           <div className="text-xs text-slate-300 pt-2">
             Tempo: <span className="text-slate-100">{sessionAge}</span>
           </div>
