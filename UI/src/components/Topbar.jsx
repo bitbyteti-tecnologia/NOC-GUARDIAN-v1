@@ -36,7 +36,7 @@ export default function Topbar() {
 
   return (
     <div className="sticky top-0 z-40 border-b border-slate-800 bg-[#020617] backdrop-blur">
-      <div className="relative px-4 md:px-6 h-20 flex items-center justify-between overflow-hidden">
+      <div className="relative px-4 md:px-6 h-[140px] flex items-center justify-between overflow-visible">
         {/* subtle pattern */}
         <div
           className="pointer-events-none absolute inset-0 opacity-10"
@@ -58,59 +58,20 @@ export default function Topbar() {
 
         <div className="absolute left-1/2 -translate-x-1/2 z-10 w-full max-w-5xl px-4">
           <Link to="/" className="flex items-center justify-center w-full">
-            <div className="flex items-center justify-center w-full max-w-5xl h-full px-4">
+            <div className="flex items-center justify-center w-full max-w-5xl h-full px-4 relative">
               <div className="flex-1 h-[2px] bg-gradient-to-r from-transparent to-slate-500 opacity-50" />
               <div className="relative flex items-center justify-center px-10 h-full">
-              <div
-                className="absolute inset-0 bg-gradient-to-b from-slate-900 to-black border-x border-slate-700"
-                style={{
-                  clipPath: "polygon(0% 0%, 100% 0%, 85% 100%, 15% 100%)",
-                  borderBottom: "1px solid rgba(100, 116, 139, 0.5)",
-                  boxShadow: "0 0 20px rgba(0,0,0,0.8)",
-                }}
-              />
-              {/* shield behind logo (vector) */}
-              <svg
-                className="pointer-events-none absolute left-1/2 top-1/2 h-[130px] w-[110px] -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_0_12px_rgba(59,130,246,0.35)]"
-                viewBox="0 0 200 230"
-                aria-hidden="true"
-              >
-                <defs>
-                  <linearGradient id="shieldBody" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#6dd3ff" />
-                    <stop offset="55%" stopColor="#1f6bd8" />
-                    <stop offset="100%" stopColor="#0b2b66" />
-                  </linearGradient>
-                  <linearGradient id="shieldRim" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#e5e7eb" />
-                    <stop offset="50%" stopColor="#94a3b8" />
-                    <stop offset="100%" stopColor="#475569" />
-                  </linearGradient>
-                  <radialGradient id="shieldGloss" cx="30%" cy="20%" r="55%">
-                    <stop offset="0%" stopColor="rgba(255,255,255,0.75)" />
-                    <stop offset="45%" stopColor="rgba(255,255,255,0.25)" />
-                    <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-                  </radialGradient>
-                </defs>
-                <path
-                  d="M100 10 L182 36 L192 92 Q182 170 100 220 Q18 170 8 92 L18 36 Z"
-                  fill="url(#shieldRim)"
+                <img
+                  src="/escudo nocguardian.png"
+                  alt="Escudo NOC Guardian"
+                  className="pointer-events-none absolute left-1/2 top-1/2 h-[130px] w-auto -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_0_12px_rgba(59,130,246,0.4)]"
                 />
-                <path
-                  d="M100 22 L170 44 L178 92 Q170 162 100 204 Q30 162 22 92 L30 44 Z"
-                  fill="url(#shieldBody)"
+                <img
+                  src="/Logo NOC - Guardian-01-Transparente.png"
+                  alt="NOC Guardian Logo"
+                  className="relative z-10 h-[95px] w-auto object-contain drop-shadow-[0_0_12px_rgba(59,130,246,0.7)] transition-transform duration-300 group-hover:scale-105"
+                  onError={(e) => { e.target.style.display = "none"; }}
                 />
-                <path
-                  d="M60 40 Q110 10 150 60 Q110 55 60 70 Z"
-                  fill="url(#shieldGloss)"
-                />
-              </svg>
-              <img
-                src="/Logo NOC - Guardian-01-Transparente.png"
-                alt="NOC Guardian Logo"
-                className="relative z-10 h-[100px] w-auto object-contain drop-shadow-[0_0_12px_rgba(59,130,246,0.7)] transition-transform duration-300 group-hover:scale-105"
-                onError={(e) => { e.target.style.display = "none"; }}
-              />
               </div>
               <div className="flex-1 h-[2px] bg-gradient-to-l from-transparent to-slate-500 opacity-50" />
             </div>
@@ -140,7 +101,7 @@ export default function Topbar() {
         <>
           <div className="fixed inset-0 bg-black/50 z-50" onClick={closeAll} />
           <aside
-            className="fixed left-0 top-20 h-[calc(100vh-80px)] w-80 max-w-[85vw] bg-slate-950 border-r border-slate-800 z-[60] flex flex-col"
+            className="fixed left-0 top-[140px] h-[calc(100vh-140px)] w-80 max-w-[85vw] bg-slate-950 border-r border-slate-800 z-[60] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
