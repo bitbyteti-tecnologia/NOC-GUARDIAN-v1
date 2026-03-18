@@ -35,7 +35,7 @@ export default function Topbar() {
   const closeAll = () => { setOpen(false); setCfgOpen(false); };
 
   return (
-    <div className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
+    <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
       <div className="px-4 md:px-6 py-3 flex items-center justify-between">
 
         <div className="flex items-center gap-3">
@@ -78,8 +78,11 @@ export default function Topbar() {
       {/* Menu lateral (mobile + desktop) */}
       {open && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={closeAll} />
-          <aside className="fixed left-0 top-14 h-[calc(100vh-56px)] w-80 max-w-[85vw] bg-slate-950 border-r border-slate-800 z-50 flex flex-col">
+          <div className="fixed inset-0 bg-black/50 z-50" onClick={closeAll} />
+          <aside
+            className="fixed left-0 top-14 h-[calc(100vh-56px)] w-80 max-w-[85vw] bg-slate-950 border-r border-slate-800 z-[60] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
               <div className="text-sm font-semibold tracking-wide text-slate-200">Menu</div>
               <button
