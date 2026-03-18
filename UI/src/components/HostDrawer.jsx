@@ -116,7 +116,6 @@ export default function HostDrawer({
 
   const hostFull = useMemo(() => (hostMeta ? { ...host, ...hostMeta } : host), [host, hostMeta]);
   const severity = computeHostSeverity(hostFull || host || {});
-  const healthSummary = buildHostHealthSummary(hostFull || host || {});
 
   // VM do painel (dados reais + polling)
   const { vm: telemetryVM } = useTelemetryFromApi({
@@ -177,26 +176,6 @@ export default function HostDrawer({
           >
             <span>{severityLabel(severity)}</span>
           </div>
-        </div>
-      </div>
-
-      {/* Resumo de risco + KPIs rápidos */}
-      <div className="mt-3 text-xs text-slate-400">
-        {healthSummary}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
-          <div className="text-xs text-slate-400 font-semibold">CPU</div>
-          <div className="text-lg font-extrabold text-slate-100 mt-1">{fmtPct(hostFull?.cpu_percent)}</div>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
-          <div className="text-xs text-slate-400 font-semibold">Memória</div>
-          <div className="text-lg font-extrabold text-slate-100 mt-1">{fmtPct(hostFull?.mem_used_pct)}</div>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
-          <div className="text-xs text-slate-400 font-semibold">Disco</div>
-          <div className="text-lg font-extrabold text-slate-100 mt-1">{fmtPct(hostFull?.disk_used_pct)}</div>
         </div>
       </div>
 

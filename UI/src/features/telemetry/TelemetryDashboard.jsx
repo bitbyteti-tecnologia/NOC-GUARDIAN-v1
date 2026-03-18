@@ -41,20 +41,7 @@ export function TelemetryDashboard({ raw, fieldMap, vm }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">Intervalo:</span>
-            <select
-              value={range}
-              onChange={(e) => setRange(e.target.value)}
-              className="rounded-xl bg-slate-950/50 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none"
-            >
-              <option value="15m">15m</option>
-              <option value="30m">30m</option>
-              <option value="1h">1h</option>
-              <option value="6h">6h</option>
-              <option value="24h">24h</option>
-            </select>
-          </div>
+          {/* Intervalo visual (placeholder futuro, por enquanto não altera a janela da API) */}
         </div>
       </div>
 
