@@ -127,6 +127,8 @@ func Collect(diskPath string) (Snapshot, error) {
 		return Snapshot{}, err
 	}
 
+	rxBps, txBps, readBps, writeBps := collectNetDiskBps()
+
 	sys, hasSys := collectSystemInfo()
 
 	return Snapshot{
@@ -138,10 +140,10 @@ func Collect(diskPath string) (Snapshot, error) {
 		DiskUsedPct:   disk,
 		DiskPath:      diskPath,
 		Services:      map[string]string{},
-		NetRxBps:      0,
-		NetTxBps:      0,
-		DiskReadBps:   0,
-		DiskWriteBps:  0,
+		NetRxBps:      rxBps,
+		NetTxBps:      txBps,
+		DiskReadBps:   readBps,
+		DiskWriteBps:  writeBps,
 		HasSys:        hasSys,
 		System:        sys,
 	}, nil
