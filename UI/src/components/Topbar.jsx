@@ -35,18 +35,17 @@ export default function Topbar() {
   const closeAll = () => { setOpen(false); setCfgOpen(false); };
 
   return (
-    <div className="sticky top-0 z-40 border-b border-slate-800 bg-gradient-to-b from-slate-950 via-slate-900/90 to-slate-950 backdrop-blur">
-      <div className="relative px-4 md:px-6 h-[150px] flex items-center justify-between overflow-hidden">
-        {/* top/bottom long lines */}
-        <div className="pointer-events-none absolute left-0 right-0 top-2 h-px bg-gradient-to-r from-transparent via-slate-500/70 to-transparent" />
-        <div className="pointer-events-none absolute left-0 right-0 bottom-2 h-px bg-gradient-to-r from-transparent via-slate-600/50 to-transparent" />
+    <div className="sticky top-0 z-40 border-b border-slate-800 bg-[#020617] backdrop-blur">
+      <div className="relative px-4 md:px-6 h-20 flex items-center justify-between overflow-hidden">
+        {/* subtle pattern */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-10"
+          style={{ backgroundImage: "radial-gradient(circle, #475569 1px, transparent 1px)", backgroundSize: "20px 20px" }}
+        />
+        {/* top line */}
+        <div className="pointer-events-none absolute top-0 w-full h-px bg-gradient-to-r from-transparent via-slate-500 to-transparent" />
 
-        {/* angled corners to mimic frame */}
-        <div className="pointer-events-none absolute left-8 top-2 h-4 w-16 border-t border-l border-slate-500/60 skew-x-[-20deg]" />
-        <div className="pointer-events-none absolute right-8 top-2 h-4 w-16 border-t border-r border-slate-500/60 skew-x-[20deg]" />
-        <div className="pointer-events-none absolute left-8 bottom-2 h-4 w-16 border-b border-l border-slate-600/50 skew-x-[20deg]" />
-        <div className="pointer-events-none absolute right-8 bottom-2 h-4 w-16 border-b border-r border-slate-600/50 skew-x-[-20deg]" />
-        <div className="flex items-center gap-3 w-56">
+        <div className="flex items-center gap-3 w-56 relative z-10">
           <button
             className="px-3 py-2 rounded hover:bg-slate-900 border border-slate-800"
             onClick={() => setOpen(!open)}
@@ -57,30 +56,30 @@ export default function Topbar() {
           </button>
         </div>
 
-        <Link to="/" className="flex items-center justify-center group flex-1">
-          <div className="relative px-12 py-2">
-            {/* central plate with angled corners */}
-            <div
-              className="absolute inset-0 border border-slate-500/60 bg-slate-950/80"
-              style={{
-                clipPath: "polygon(6% 0, 94% 0, 100% 50%, 94% 100%, 6% 100%, 0 50%)",
-                boxShadow: "0 0 40px rgba(59,130,246,0.25)",
-              }}
-            />
-            {/* glow line */}
-            <div className="absolute left-1/2 top-1/2 h-[2px] w-[70%] -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-transparent via-sky-400/80 to-transparent" />
-            {/* subtle speckle band */}
-            <div className="absolute left-1/2 top-1/2 h-[18px] w-[75%] -translate-x-1/2 -translate-y-1/2 opacity-20 bg-[radial-gradient(circle_at_20%_40%,rgba(148,163,184,0.6),transparent_40%),radial-gradient(circle_at_80%_60%,rgba(148,163,184,0.5),transparent_45%)]" />
-            <img
-              src="/Logo NOC - Guardian-01-Transparente.png"
-              alt="Logo"
-              className="relative h-[110px] w-auto object-contain transition-transform group-hover:scale-105"
-              onError={(e) => { e.target.style.display = "none"; }}
-            />
+        <Link to="/" className="relative z-10 flex items-center justify-center flex-1">
+          <div className="flex items-center justify-center w-full max-w-5xl h-full px-4">
+            <div className="flex-1 h-[2px] bg-gradient-to-r from-transparent to-slate-500 opacity-50" />
+            <div className="relative flex items-center justify-center px-10 h-full">
+              <div
+                className="absolute inset-0 bg-gradient-to-b from-slate-900 to-black border-x border-slate-700"
+                style={{
+                  clipPath: "polygon(0% 0%, 100% 0%, 85% 100%, 15% 100%)",
+                  borderBottom: "1px solid rgba(100, 116, 139, 0.5)",
+                  boxShadow: "0 0 20px rgba(0,0,0,0.8)",
+                }}
+              />
+              <img
+                src="/Logo NOC - Guardian-01-Transparente.png"
+                alt="NOC Guardian Logo"
+                className="relative z-10 h-12 w-auto object-contain drop-shadow-[0_0_8px_rgba(59,130,246,0.5)] transition-transform duration-300 group-hover:scale-105"
+                onError={(e) => { e.target.style.display = "none"; }}
+              />
+            </div>
+            <div className="flex-1 h-[2px] bg-gradient-to-l from-transparent to-slate-500 opacity-50" />
           </div>
         </Link>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 relative z-10">
           <div className="hidden md:block text-xs text-slate-300 font-mono tracking-wide">
             Tempo: <span className="text-slate-100">{sessionAge}</span>
           </div>
@@ -92,6 +91,10 @@ export default function Topbar() {
           )}
           <LogoutButton />
         </div>
+
+        {/* central flare */}
+        <div className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 w-64 h-[2px] bg-blue-400 shadow-[0_0_15px_4px_rgba(59,130,246,0.6)] blur-[1px]" />
+        <div className="pointer-events-none absolute -bottom-4 left-1/2 -translate-x-1/2 w-96 h-12 bg-blue-600/10 blur-3xl rounded-full" />
       </div>
 
       {/* Menu lateral (mobile + desktop) */}
@@ -99,7 +102,7 @@ export default function Topbar() {
         <>
           <div className="fixed inset-0 bg-black/50 z-50" onClick={closeAll} />
           <aside
-            className="fixed left-0 top-[150px] h-[calc(100vh-150px)] w-80 max-w-[85vw] bg-slate-950 border-r border-slate-800 z-[60] flex flex-col"
+            className="fixed left-0 top-20 h-[calc(100vh-80px)] w-80 max-w-[85vw] bg-slate-950 border-r border-slate-800 z-[60] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
