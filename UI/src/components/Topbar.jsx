@@ -36,7 +36,7 @@ export default function Topbar() {
 
   return (
     <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
-      <div className="px-4 md:px-6 h-28 flex items-center justify-between">
+      <div className="px-4 md:px-6 h-24 flex items-center justify-between">
         <div className="flex items-center gap-3 w-56">
           <button
             className="px-3 py-2 rounded hover:bg-slate-900 border border-slate-800"
@@ -52,18 +52,18 @@ export default function Topbar() {
           <img
             src="/Logo NOC - Guardian-01-Transparente.png"
             alt="Logo"
-            className="h-28 w-auto object-contain transition-transform group-hover:scale-105"
+            className="h-20 w-auto object-contain transition-transform group-hover:scale-105"
             onError={(e) => { e.target.style.display = "none"; }}
           />
         </Link>
 
         <div className="flex items-center gap-3">
-          <div className="hidden md:block text-xs text-slate-300">
+          <div className="hidden md:block text-xs text-slate-300 font-mono tracking-wide">
             Tempo: <span className="text-slate-100">{sessionAge}</span>
           </div>
 
           {me && (
-            <div className="hidden md:block text-xs text-slate-300">
+            <div className="hidden md:block text-xs text-slate-300 font-mono tracking-wide">
               {me.email} <span className="text-slate-500">({me.role})</span>
             </div>
           )}
@@ -76,7 +76,7 @@ export default function Topbar() {
         <>
           <div className="fixed inset-0 bg-black/50 z-50" onClick={closeAll} />
           <aside
-            className="fixed left-0 top-28 h-[calc(100vh-112px)] w-80 max-w-[85vw] bg-slate-950 border-r border-slate-800 z-[60] flex flex-col"
+            className="fixed left-0 top-24 h-[calc(100vh-96px)] w-80 max-w-[85vw] bg-slate-950 border-r border-slate-800 z-[60] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
