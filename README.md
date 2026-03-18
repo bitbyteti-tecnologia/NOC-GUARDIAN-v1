@@ -79,6 +79,11 @@ Compose atual em `docker/compose.central.yml`:
 Fluxo tipico (ajuste conforme seu ambiente):
 1. Atualizar repo no servidor
 2. `docker compose -f docker/compose.central.yml up -d --build`
+3. Reiniciar nginx apos rebuild (evita cache DNS de upstream)
+   - `docker compose -f docker/compose.central.yml restart nginx`
+
+Script de deploy (recomendado):
+- `./deploy.sh`
 
 ## Desenvolvimento
 UI:
@@ -104,3 +109,10 @@ Dashboard API:
 - Diagnosticos com execucao real via Proxy.
 - RCA com regras baseadas em topologia e metricas.
 
+## Checklist de Release
+1. `git pull` no servidor
+2. `docker compose -f docker/compose.central.yml up -d --build`
+3. `docker compose -f docker/compose.central.yml restart nginx`
+4. Validar:
+   - `https://nocguardian.bitbyteti.tec.br/healthz`
+   - `/api/v1/tenants/{tenantId}/dashboard/summary`
