@@ -3,6 +3,7 @@
 package metrics
 
 import (
+	"strings"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -33,6 +34,11 @@ var (
 	pdhNetTx      syscall.Handle
 	pdhDiskRead   syscall.Handle
 	pdhDiskWrite  syscall.Handle
+
+	pdhNetRxList    []syscall.Handle
+	pdhNetTxList    []syscall.Handle
+	pdhDiskReadList []syscall.Handle
+	pdhDiskWriteList []syscall.Handle
 )
 
 func pdhInit() {
@@ -40,6 +46,8 @@ func pdhInit() {
 		pdh := syscall.NewLazyDLL("pdh.dll")
 		openQuery := pdh.NewProc("PdhOpenQueryW")
 		addEngCounter := pdh.NewProc("PdhAddEnglishCounterW")
+		addCounter := pdh.NewProc("PdhAddCounterW")
+		expandWild := pdh.NewProc("PdhExpandWildCardPathW")
 		collect := pdh.NewProc("PdhCollectQueryData")
 
 		// open query
@@ -58,22 +66,20 @@ func pdhInit() {
 			return nil
 		}
 
-		// Try _Total instance for aggregated counters
-		if err := add(`\\Network Interface(_Total)\\Bytes Received/sec`, &pdhNetRx); err != nil {
-			pdhInitErr = err
-			return
+		// Try English _Total instance for aggregated counters
+		_ = add(`\\Network Interface(_Total)\\Bytes Received/sec`, &pdhNetRx)
+		_ = add(`\\Network Interface(_Total)\\Bytes Sent/sec`, &pdhNetTx)
+		_ = add(`\\PhysicalDisk(_Total)\\Disk Read Bytes/sec`, &pdhDiskRead)
+		_ = add(`\\PhysicalDisk(_Total)\\Disk Write Bytes/sec`, &pdhDiskWrite)
+
+		// If English counters not available, use localized names (PT-BR) with wildcards
+		if pdhNetRx == 0 || pdhNetTx == 0 {
+			pdhNetRxList = addLocalizedCounters(expandWild, addCounter, `\\Interface de rede(*)\\Bytes recebidos/s`)
+			pdhNetTxList = addLocalizedCounters(expandWild, addCounter, `\\Interface de rede(*)\\Bytes enviados/s`)
 		}
-		if err := add(`\\Network Interface(_Total)\\Bytes Sent/sec`, &pdhNetTx); err != nil {
-			pdhInitErr = err
-			return
-		}
-		if err := add(`\\PhysicalDisk(_Total)\\Disk Read Bytes/sec`, &pdhDiskRead); err != nil {
-			pdhInitErr = err
-			return
-		}
-		if err := add(`\\PhysicalDisk(_Total)\\Disk Write Bytes/sec`, &pdhDiskWrite); err != nil {
-			pdhInitErr = err
-			return
+		if pdhDiskRead == 0 || pdhDiskWrite == 0 {
+			pdhDiskReadList = addLocalizedCounters(expandWild, addCounter, `\\PhysicalDisk(*)\\Bytes de leitura de disco/s`)
+			pdhDiskWriteList = addLocalizedCounters(expandWild, addCounter, `\\PhysicalDisk(*)\\Bytes de gravação de disco/s`)
 		}
 
 		// first collect
@@ -112,10 +118,77 @@ func collectNetDiskBps() (float64, float64, float64, float64) {
 	collect := pdh.NewProc("PdhCollectQueryData")
 	collect.Call(uintptr(pdhQuery))
 
-	rx, _ := pdhGet(pdhNetRx)
-	tx, _ := pdhGet(pdhNetTx)
-	dr, _ := pdhGet(pdhDiskRead)
-	dw, _ := pdhGet(pdhDiskWrite)
+	rx := sumCounters(pdhNetRx, pdhNetRxList)
+	tx := sumCounters(pdhNetTx, pdhNetTxList)
+	dr := sumCounters(pdhDiskRead, pdhDiskReadList)
+	dw := sumCounters(pdhDiskWrite, pdhDiskWriteList)
 	return rx, tx, dr, dw
 }
 
+func addLocalizedCounters(expandWild, addCounter *syscall.LazyProc, wildcardPath string) []syscall.Handle {
+	p, _ := syscall.UTF16PtrFromString(wildcardPath)
+
+	// first call to get buffer size
+	var bufSize uint32
+	r1, _, _ := expandWild.Call(0, uintptr(unsafe.Pointer(p)), 0, 0, uintptr(unsafe.Pointer(&bufSize)))
+	_ = r1
+	if bufSize == 0 {
+		return nil
+	}
+
+	buf := make([]uint16, bufSize)
+	r2, _, _ := expandWild.Call(0, uintptr(unsafe.Pointer(p)), 0, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&bufSize)))
+	if r2 != 0 {
+		return nil
+	}
+
+	paths := splitMultiSz(buf)
+	var handles []syscall.Handle
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
+		pth, _ := syscall.UTF16PtrFromString(path)
+		var h syscall.Handle
+		r, _, _ := addCounter.Call(uintptr(pdhQuery), uintptr(unsafe.Pointer(pth)), 0, uintptr(unsafe.Pointer(&h)))
+		if r == 0 && h != 0 {
+			handles = append(handles, h)
+		}
+	}
+	return handles
+}
+
+func splitMultiSz(buf []uint16) []string {
+	var out []string
+	start := 0
+	for i := 0; i < len(buf); i++ {
+		if buf[i] == 0 {
+			if i > start {
+				out = append(out, syscall.UTF16ToString(buf[start:i]))
+			} else {
+				break
+			}
+			start = i + 1
+		}
+	}
+	return out
+}
+
+func sumCounters(single syscall.Handle, list []syscall.Handle) float64 {
+	if single != 0 {
+		v, _ := pdhGet(single)
+		return v
+	}
+	var sum float64
+	for _, h := range list {
+		if h == 0 {
+			continue
+		}
+		v, _ := pdhGet(h)
+		sum += v
+	}
+	if strings.IsNaN(sum) {
+		return 0
+	}
+	return sum
+}
