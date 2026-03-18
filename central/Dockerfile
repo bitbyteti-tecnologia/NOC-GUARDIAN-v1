@@ -16,6 +16,5 @@ RUN CGO_ENABLED=0 go build -o central .
 FROM alpine:3.19
 WORKDIR /app
 COPY --from=build /app/central /app/central
-COPY .env /app/.env
 EXPOSE 8080
 ENTRYPOINT ["/app/central"]
