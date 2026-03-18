@@ -69,14 +69,42 @@ export default function Topbar() {
                   boxShadow: "0 0 20px rgba(0,0,0,0.8)",
                 }}
               />
-              {/* shield behind logo */}
-              <div
-                className="pointer-events-none absolute left-1/2 top-1/2 h-[130px] w-[110px] -translate-x-1/2 -translate-y-1/2 bg-gradient-to-b from-slate-800/90 to-slate-950/90 border border-sky-500/40"
-                style={{
-                  clipPath: "polygon(50% 0%, 90% 12%, 100% 38%, 78% 100%, 50% 90%, 22% 100%, 0 38%, 10% 12%)",
-                  boxShadow: "0 0 18px rgba(56,189,248,0.35)",
-                }}
-              />
+              {/* shield behind logo (vector) */}
+              <svg
+                className="pointer-events-none absolute left-1/2 top-1/2 h-[130px] w-[110px] -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_0_12px_rgba(59,130,246,0.35)]"
+                viewBox="0 0 200 230"
+                aria-hidden="true"
+              >
+                <defs>
+                  <linearGradient id="shieldBody" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#6dd3ff" />
+                    <stop offset="55%" stopColor="#1f6bd8" />
+                    <stop offset="100%" stopColor="#0b2b66" />
+                  </linearGradient>
+                  <linearGradient id="shieldRim" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#e5e7eb" />
+                    <stop offset="50%" stopColor="#94a3b8" />
+                    <stop offset="100%" stopColor="#475569" />
+                  </linearGradient>
+                  <radialGradient id="shieldGloss" cx="30%" cy="20%" r="55%">
+                    <stop offset="0%" stopColor="rgba(255,255,255,0.75)" />
+                    <stop offset="45%" stopColor="rgba(255,255,255,0.25)" />
+                    <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+                  </radialGradient>
+                </defs>
+                <path
+                  d="M100 10 L182 36 L192 92 Q182 170 100 220 Q18 170 8 92 L18 36 Z"
+                  fill="url(#shieldRim)"
+                />
+                <path
+                  d="M100 22 L170 44 L178 92 Q170 162 100 204 Q30 162 22 92 L30 44 Z"
+                  fill="url(#shieldBody)"
+                />
+                <path
+                  d="M60 40 Q110 10 150 60 Q110 55 60 70 Z"
+                  fill="url(#shieldGloss)"
+                />
+              </svg>
               <img
                 src="/Logo NOC - Guardian-01-Transparente.png"
                 alt="NOC Guardian Logo"
