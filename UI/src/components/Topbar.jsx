@@ -91,9 +91,7 @@ export default function Topbar() {
           <LogoutButton />
         </div>
 
-        {/* central flare */}
-        <div className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 w-64 h-[2px] bg-blue-400 shadow-[0_0_15px_4px_rgba(59,130,246,0.6)] blur-[1px]" />
-        <div className="pointer-events-none absolute -bottom-4 left-1/2 -translate-x-1/2 w-96 h-12 bg-blue-600/10 blur-3xl rounded-full" />
+        {/* central flare removed */}
       </div>
 
       {/* Menu lateral (mobile + desktop) */}
