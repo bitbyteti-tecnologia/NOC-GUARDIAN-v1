@@ -246,9 +246,12 @@ func ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO: Enviar e-mail com o token RAW no link de reset.
-	// Exemplo (ajuste conforme seu frontend):
-	// resetURL := fmt.Sprintf("%s/reset-password?token=%s", PublicURL, raw)
-	// _ = SendResetEmail(req.Email, resetURL)
+	resetURL := BuildResetURL(r, raw)
+	if err := SendResetEmail(req.Email, resetURL); err != nil {
+		// Em produção, não vazar token no log; apenas sinalizar falha.
+		// Em ambiente não-prod, loga a URL para testes rápidos.
+		logResetFallback(err, resetURL)
+	}
 
 	// Resposta silenciosa (não revela se o usuário existe)
 	w.WriteHeader(http.StatusNoContent)
