@@ -36,7 +36,10 @@ export default function Topbar() {
 
   return (
     <div className="sticky top-0 z-40 border-b border-slate-800 bg-gradient-to-b from-slate-950 via-slate-900/90 to-slate-950 backdrop-blur">
-      <div className="px-4 md:px-6 h-[160px] flex items-center justify-between">
+      <div className="relative px-4 md:px-6 h-[150px] flex items-center justify-between">
+        {/* decorative lines */}
+        <div className="pointer-events-none absolute inset-x-0 top-3 h-px bg-gradient-to-r from-transparent via-slate-600/60 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-3 h-px bg-gradient-to-r from-transparent via-slate-700/40 to-transparent" />
         <div className="flex items-center gap-3 w-56">
           <button
             className="px-3 py-2 rounded hover:bg-slate-900 border border-slate-800"
@@ -49,11 +52,19 @@ export default function Topbar() {
         </div>
 
         <Link to="/" className="flex items-center justify-center group flex-1">
-          <div className="px-6 py-2 rounded-full border border-slate-700/60 bg-slate-950/50 shadow-[0_0_24px_rgba(59,130,246,0.18)]">
+          <div className="relative px-10 py-3">
+            <div
+              className="absolute inset-0 border border-slate-600/60 bg-slate-950/70"
+              style={{
+                clipPath: "polygon(4% 0, 96% 0, 100% 50%, 96% 100%, 4% 100%, 0 50%)",
+                boxShadow: "0 0 30px rgba(59,130,246,0.25)",
+              }}
+            />
+            <div className="absolute left-1/2 top-1/2 h-[2px] w-[65%] -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-transparent via-sky-400/60 to-transparent" />
             <img
               src="/Logo NOC - Guardian-01-Transparente.png"
               alt="Logo"
-              className="h-[140px] w-auto object-contain transition-transform group-hover:scale-105"
+              className="relative h-[110px] w-auto object-contain transition-transform group-hover:scale-105"
               onError={(e) => { e.target.style.display = "none"; }}
             />
           </div>
@@ -78,7 +89,7 @@ export default function Topbar() {
         <>
           <div className="fixed inset-0 bg-black/50 z-50" onClick={closeAll} />
           <aside
-            className="fixed left-0 top-[160px] h-[calc(100vh-160px)] w-80 max-w-[85vw] bg-slate-950 border-r border-slate-800 z-[60] flex flex-col"
+            className="fixed left-0 top-[150px] h-[calc(100vh-150px)] w-80 max-w-[85vw] bg-slate-950 border-r border-slate-800 z-[60] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
