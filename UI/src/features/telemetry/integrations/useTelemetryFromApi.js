@@ -32,6 +32,8 @@ export function useTelemetryFromApi({
   const [read, setRead] = useState([]);
   const [write, setWrite] = useState([]);
   const [memSeries, setMemSeries] = useState([]); // ✅ série memória
+  const [wanLatency, setWanLatency] = useState([]);
+  const [wanLoss, setWanLoss] = useState([]);
 
   const hostname = host?.hostname;
 
@@ -55,10 +57,12 @@ export function useTelemetryFromApi({
         mem: "mem_used_pct",
         memUsed: "mem_used_bytes",
         memTotal: "mem_total_bytes",
+        wanLatency: "wan_latency_ms",
+        wanLoss: "wan_packet_loss_pct",
       };
 
       try {
-        const [a, b, c, d, g, h, i] = await Promise.all([
+        const [a, b, c, d, g, h, i, j, k] = await Promise.all([
           api.get(`${base}&metric=${encodeURIComponent(METRICS.rx)}`),
           api.get(`${base}&metric=${encodeURIComponent(METRICS.tx)}`),
           api.get(`${base}&metric=${encodeURIComponent(METRICS.read)}`),
@@ -66,6 +70,8 @@ export function useTelemetryFromApi({
           api.get(`${base}&metric=${encodeURIComponent(METRICS.mem)}`),
           api.get(`${base}&metric=${encodeURIComponent(METRICS.memUsed)}`),
           api.get(`${base}&metric=${encodeURIComponent(METRICS.memTotal)}`),
+          api.get(`${base}&metric=${encodeURIComponent(METRICS.wanLatency)}`),
+          api.get(`${base}&metric=${encodeURIComponent(METRICS.wanLoss)}`),
         ]);
 
         if (!alive) return;
@@ -75,6 +81,8 @@ export function useTelemetryFromApi({
         setRead(normalizePoints(c.data).map((p) => ({ ts: toTs(p), v: toVal(p) })).filter((p) => p.ts));
         setWrite(normalizePoints(d.data).map((p) => ({ ts: toTs(p), v: toVal(p) })).filter((p) => p.ts));
         setMemSeries(normalizePoints(g.data).map((p) => ({ ts: toTs(p), v: toVal(p) })).filter((p) => p.ts));
+        setWanLatency(normalizePoints(j.data).map((p) => ({ ts: toTs(p), v: toVal(p) })).filter((p) => p.ts));
+        setWanLoss(normalizePoints(k.data).map((p) => ({ ts: toTs(p), v: toVal(p) })).filter((p) => p.ts));
 
         const lastUsed = normalizePoints(h.data).pop()?.v;
         const lastTotal = normalizePoints(i.data).pop()?.v;
@@ -84,6 +92,7 @@ export function useTelemetryFromApi({
         if (!alive) return;
         setRx([]); setTx([]); setRead([]); setWrite([]);
         setMemSeries([]);
+        setWanLatency([]); setWanLoss([]);
       }
     }
 
@@ -136,13 +145,27 @@ export function useTelemetryFromApi({
         : undefined,
     };
 
+    // LAN (usa série de rede atual)
+    base.lan = {
+      series: (rx.length || tx.length)
+        ? rx.map((p, i) => ({ ts: p.ts, rxBps: p.v, txBps: tx[i]?.v ?? 0 }))
+        : undefined,
+    };
+
+    // WAN (latência e perda de pacotes)
+    base.wan = {
+      series: (wanLatency.length || wanLoss.length)
+        ? wanLatency.map((p, i) => ({ ts: p.ts, latencyMs: p.v, lossPct: wanLoss[i]?.v ?? 0 }))
+        : undefined,
+    };
+
     // Flags
     const netOk = rx.length || tx.length ? true : undefined;
     const diskOk = read.length || write.length ? true : undefined;
     base.flags = { netOk, diskOk };
 
     return base;
-  }, [host, rx, tx, read, write, memSeries]);
+  }, [host, rx, tx, read, write, memSeries, wanLatency, wanLoss]);
 
   return { vm };
 }
