@@ -39,6 +39,8 @@ func Load(path string) (*Config, error) {
 		}
 
 		k := strings.TrimSpace(parts[0])
+		// Remove BOM if present (common on Windows UTF-8 files)
+		k = strings.TrimPrefix(k, "\ufeff")
 		v := strings.TrimSpace(parts[1])
 		v = strings.Trim(v, `"'`)
 
