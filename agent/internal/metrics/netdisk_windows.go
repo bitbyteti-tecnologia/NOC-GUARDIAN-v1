@@ -4,6 +4,7 @@ package metrics
 
 import (
 	"math"
+	"os"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -73,10 +74,11 @@ func pdhInit() {
 		_ = add(`\\PhysicalDisk(_Total)\\Disk Write Bytes/sec`, &pdhDiskWrite)
 
 		// Also load localized counters (PT-BR) with wildcards as fallback
-		pdhNetRxList = addLocalizedCounters(expandWild, addCounter, `\\Interface de rede(*)\\Bytes recebidos/s`)
-		pdhNetTxList = addLocalizedCounters(expandWild, addCounter, `\\Interface de rede(*)\\Bytes enviados/s`)
-		pdhDiskReadList = addLocalizedCounters(expandWild, addCounter, `\\PhysicalDisk(*)\\Bytes de leitura de disco/s`)
-		pdhDiskWriteList = addLocalizedCounters(expandWild, addCounter, `\\PhysicalDisk(*)\\Bytes de gravação de disco/s`)
+		hn, _ := os.Hostname()
+		pdhNetRxList = addLocalizedCounters(expandWild, addCounter, hn, `\\Interface de rede(*)\\Bytes recebidos/s`)
+		pdhNetTxList = addLocalizedCounters(expandWild, addCounter, hn, `\\Interface de rede(*)\\Bytes enviados/s`)
+		pdhDiskReadList = addLocalizedCounters(expandWild, addCounter, hn, `\\PhysicalDisk(*)\\Bytes de leitura de disco/s`)
+		pdhDiskWriteList = addLocalizedCounters(expandWild, addCounter, hn, `\\PhysicalDisk(*)\\Bytes de gravação de disco/s`)
 
 		// first collect
 		r2, _, err2 := collect.Call(uintptr(pdhQuery))
@@ -121,34 +123,44 @@ func collectNetDiskBps() (float64, float64, float64, float64) {
 	return rx, tx, dr, dw
 }
 
-func addLocalizedCounters(expandWild, addCounter *syscall.LazyProc, wildcardPath string) []syscall.Handle {
-	p, _ := syscall.UTF16PtrFromString(wildcardPath)
-
-	// first call to get buffer size
-	var bufSize uint32
-	r1, _, _ := expandWild.Call(0, uintptr(unsafe.Pointer(p)), 0, 0, uintptr(unsafe.Pointer(&bufSize)))
-	_ = r1
-	if bufSize == 0 {
-		return nil
+func addLocalizedCounters(expandWild, addCounter *syscall.LazyProc, hostname, wildcardPath string) []syscall.Handle {
+	pathsToTry := []string{
+		wildcardPath,
+		`\\.\` + wildcardPath[2:],
+	}
+	if hostname != "" {
+		pathsToTry = append(pathsToTry, `\\`+hostname+`\`+wildcardPath[2:])
 	}
 
-	buf := make([]uint16, bufSize)
-	r2, _, _ := expandWild.Call(0, uintptr(unsafe.Pointer(p)), 0, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&bufSize)))
-	if r2 != 0 {
-		return nil
-	}
-
-	paths := splitMultiSz(buf)
 	var handles []syscall.Handle
-	for _, path := range paths {
-		if path == "" {
+	for _, pthStr := range pathsToTry {
+		p, _ := syscall.UTF16PtrFromString(pthStr)
+
+		// first call to get buffer size
+		var bufSize uint32
+		r1, _, _ := expandWild.Call(0, uintptr(unsafe.Pointer(p)), 0, 0, uintptr(unsafe.Pointer(&bufSize)))
+		_ = r1
+		if bufSize == 0 {
 			continue
 		}
-		pth, _ := syscall.UTF16PtrFromString(path)
-		var h syscall.Handle
-		r, _, _ := addCounter.Call(uintptr(pdhQuery), uintptr(unsafe.Pointer(pth)), 0, uintptr(unsafe.Pointer(&h)))
-		if r == 0 && h != 0 {
-			handles = append(handles, h)
+
+		buf := make([]uint16, bufSize)
+		r2, _, _ := expandWild.Call(0, uintptr(unsafe.Pointer(p)), 0, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&bufSize)))
+		if r2 != 0 {
+			continue
+		}
+
+		paths := splitMultiSz(buf)
+		for _, path := range paths {
+			if path == "" {
+				continue
+			}
+			pth, _ := syscall.UTF16PtrFromString(path)
+			var h syscall.Handle
+			r, _, _ := addCounter.Call(uintptr(pdhQuery), uintptr(unsafe.Pointer(pth)), 0, uintptr(unsafe.Pointer(&h)))
+			if r == 0 && h != 0 {
+				handles = append(handles, h)
+			}
 		}
 	}
 	return handles

@@ -16,7 +16,7 @@ import (
 	"github.com/bitbyteti/noc-guardian/agent/internal/metrics"
 )
 
-const Version = "0.1.5"
+const Version = "0.1.6"
 
 func genID() string {
 	b := make([]byte, 16)
