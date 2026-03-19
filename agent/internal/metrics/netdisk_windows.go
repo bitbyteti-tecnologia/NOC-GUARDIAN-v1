@@ -72,15 +72,11 @@ func pdhInit() {
 		_ = add(`\\PhysicalDisk(_Total)\\Disk Read Bytes/sec`, &pdhDiskRead)
 		_ = add(`\\PhysicalDisk(_Total)\\Disk Write Bytes/sec`, &pdhDiskWrite)
 
-		// If English counters not available, use localized names (PT-BR) with wildcards
-		if pdhNetRx == 0 || pdhNetTx == 0 {
-			pdhNetRxList = addLocalizedCounters(expandWild, addCounter, `\\Interface de rede(*)\\Bytes recebidos/s`)
-			pdhNetTxList = addLocalizedCounters(expandWild, addCounter, `\\Interface de rede(*)\\Bytes enviados/s`)
-		}
-		if pdhDiskRead == 0 || pdhDiskWrite == 0 {
-			pdhDiskReadList = addLocalizedCounters(expandWild, addCounter, `\\PhysicalDisk(*)\\Bytes de leitura de disco/s`)
-			pdhDiskWriteList = addLocalizedCounters(expandWild, addCounter, `\\PhysicalDisk(*)\\Bytes de gravação de disco/s`)
-		}
+		// Also load localized counters (PT-BR) with wildcards as fallback
+		pdhNetRxList = addLocalizedCounters(expandWild, addCounter, `\\Interface de rede(*)\\Bytes recebidos/s`)
+		pdhNetTxList = addLocalizedCounters(expandWild, addCounter, `\\Interface de rede(*)\\Bytes enviados/s`)
+		pdhDiskReadList = addLocalizedCounters(expandWild, addCounter, `\\PhysicalDisk(*)\\Bytes de leitura de disco/s`)
+		pdhDiskWriteList = addLocalizedCounters(expandWild, addCounter, `\\PhysicalDisk(*)\\Bytes de gravação de disco/s`)
 
 		// first collect
 		r2, _, err2 := collect.Call(uintptr(pdhQuery))
@@ -175,20 +171,30 @@ func splitMultiSz(buf []uint16) []string {
 }
 
 func sumCounters(single syscall.Handle, list []syscall.Handle) float64 {
+	var vSingle float64
 	if single != 0 {
-		v, _ := pdhGet(single)
-		return v
+		vSingle, _ = pdhGet(single)
 	}
-	var sum float64
+
+	var sumList float64
 	for _, h := range list {
 		if h == 0 {
 			continue
 		}
 		v, _ := pdhGet(h)
-		sum += v
+		sumList += v
 	}
-	if math.IsNaN(sum) {
+
+	// Prefer _Total when it yields a valid non-zero value;
+	// otherwise fallback to the localized wildcard sum if available.
+	if !math.IsNaN(vSingle) && vSingle > 0 {
+		return vSingle
+	}
+	if !math.IsNaN(sumList) && sumList > 0 {
+		return sumList
+	}
+	if math.IsNaN(vSingle) || math.IsNaN(sumList) {
 		return 0
 	}
-	return sum
+	return vSingle
 }
