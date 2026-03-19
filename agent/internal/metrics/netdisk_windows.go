@@ -3,7 +3,7 @@
 package metrics
 
 import (
-	"strings"
+	"math"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -187,7 +187,7 @@ func sumCounters(single syscall.Handle, list []syscall.Handle) float64 {
 		v, _ := pdhGet(h)
 		sum += v
 	}
-	if strings.IsNaN(sum) {
+	if math.IsNaN(sum) {
 		return 0
 	}
 	return sum
