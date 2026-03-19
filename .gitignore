@@ -29,3 +29,6 @@ Thumbs.db
 alert_key
 hostname
 linux_hosts.txt
+agent/packaging/windows-msi/*.wixobj
+agent/packaging/windows-msi/*.wixpdb
+agent/packaging/windows-msi/*.msi
