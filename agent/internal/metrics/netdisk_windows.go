@@ -3,6 +3,7 @@
 package metrics
 
 import (
+	"log"
 	"math"
 	"os"
 	"sync"
@@ -120,6 +121,15 @@ func collectNetDiskBps() (float64, float64, float64, float64) {
 	tx := sumCounters(pdhNetTx, pdhNetTxList)
 	dr := sumCounters(pdhDiskRead, pdhDiskReadList)
 	dw := sumCounters(pdhDiskWrite, pdhDiskWriteList)
+
+	if os.Getenv("NOC_DEBUG_PDH") == "1" {
+		log.Printf(
+			"pdh debug: netRxHandle=%v netTxHandle=%v diskReadHandle=%v diskWriteHandle=%v listLens rx=%d tx=%d dr=%d dw=%d values rx=%.2f tx=%.2f dr=%.2f dw=%.2f",
+			pdhNetRx, pdhNetTx, pdhDiskRead, pdhDiskWrite,
+			len(pdhNetRxList), len(pdhNetTxList), len(pdhDiskReadList), len(pdhDiskWriteList),
+			rx, tx, dr, dw,
+		)
+	}
 	return rx, tx, dr, dw
 }
 
