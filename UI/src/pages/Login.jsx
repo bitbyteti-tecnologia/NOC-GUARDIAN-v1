@@ -64,10 +64,10 @@ export default function Login() {
         <div className="relative z-10 w-full max-w-lg px-6 flex flex-col items-center">
           <div className="mb-12 relative">
             <img 
-              src="/Logo NOC - Guardian-01-Transparente.png" 
+              src="/LogoNOCGuardian.png" 
               alt="NOC Guardian" 
               className="h-32 object-contain relative z-10 drop-shadow-[0_0_15px_rgba(56,189,248,0.5)]"
-              onError={(e) => { e.target.src = "https://img.freepik.com/free-vector/magnifying-glass-with-world-globe_1308-129715.jpg"; }} 
+              onError={(e) => { e.target.src = "/LogoNOCGuardian1.png"; }} 
             />
             {/* Círculo de pulso tecnológico atrás da logo */}
             <div className="absolute inset-0 bg-sky-500/20 rounded-full blur-3xl animate-pulse scale-150"></div>
@@ -120,10 +120,10 @@ export default function Login() {
       <form onSubmit={onSubmit} className="card w-full max-w-sm space-y-4 border border-white/5 bg-slate-900/50 backdrop-blur-xl">
         <div className="flex flex-col items-center mb-6">
           <img 
-            src="/Logo NOC - Guardian-01-Transparente.png" 
+            src="/LogoNOCGuardian.png" 
             alt="NOC Guardian" 
             className="h-28 w-auto object-contain mb-1"
-            onError={(e) => { e.target.style.display = 'none'; }}
+            onError={(e) => { e.target.src = "/LogoNOCGuardian1.png"; }}
           />
           <div className="text-[10px] font-black tracking-[0.25em] text-sky-400/90 uppercase text-center mt-[-10px] drop-shadow-[0_0_8px_rgba(56,189,248,0.4)]">
             Monitor - Protect - Optimize
