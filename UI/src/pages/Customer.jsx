@@ -6,6 +6,10 @@ import { computeHostSeverity } from "../features/telemetry/health";
 import { useTelemetryFromApi } from "../features/telemetry/integrations/useTelemetryFromApi";
 import { LanBandwidthCard } from "../features/telemetry/components/LanBandwidthCard";
 import { WanPerformanceCard } from "../features/telemetry/components/WanPerformanceCard";
+import HealthCard from "../components/dashboard/HealthCard";
+import IncidentsCard from "../components/dashboard/IncidentsCard";
+import InsightsCard from "../components/dashboard/InsightsCard";
+import RecommendationsCard from "../components/dashboard/RecommendationsCard";
 import useMe from "../hooks/useMe";
 
 function fmtDate(iso) {
@@ -53,6 +57,9 @@ export default function Customer() {
   const [osFilter, setOsFilter] = useState("all");
   const [sortKey, setSortKey] = useState("last_seen");
   const [sortDir, setSortDir] = useState("desc");
+  const [intel, setIntel] = useState(null);
+  const [intelLoading, setIntelLoading] = useState(false);
+  const [intelError, setIntelError] = useState(false);
   const downloads = [
     { label: "Windows (MSI)", file: "nocguardian-agent.msi" },
     { label: "Linux ARM64 (.deb)", file: "nocguardian-agent_arm64.deb" },
@@ -89,9 +96,25 @@ export default function Customer() {
     }
   }
 
+  async function loadIntelligence() {
+    if (!tenantId) return;
+    setIntelLoading(true);
+    setIntelError(false);
+    try {
+      const r = await api.get(`/api/v1/dashboard/intelligence?tenant_id=${encodeURIComponent(tenantId)}`);
+      setIntel(r.data || null);
+    } catch {
+      setIntel(null);
+      setIntelError(true);
+    } finally {
+      setIntelLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadAll();
     loadTenantInfo();
+    loadIntelligence();
     // eslint-disable-next-line
   }, [tenantId]);
 
@@ -252,6 +275,34 @@ export default function Customer() {
               <div className="text-xs text-slate-400 mt-1">{d.file}</div>
             </a>
           ))}
+        </div>
+      </div>
+
+      {/* Inteligência do Tenant */}
+      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div>
+            <div className="font-semibold text-slate-100">Inteligência</div>
+            <div className="text-xs text-slate-400 mt-1">
+              Insights e priorização automática para decisões rápidas.
+            </div>
+          </div>
+          <button
+            className="px-3 py-2 bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 text-xs"
+            onClick={loadIntelligence}
+            disabled={intelLoading}
+          >
+            {intelLoading ? "..." : "Atualizar"}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div className="xl:col-span-2">
+            <HealthCard data={intel} loading={intelLoading} error={intelError} />
+          </div>
+          <IncidentsCard items={intel?.top_incidents || []} loading={intelLoading} error={intelError} />
+          <InsightsCard items={intel?.insights || []} loading={intelLoading} error={intelError} />
+          <RecommendationsCard items={intel?.recommendations || []} loading={intelLoading} error={intelError} />
         </div>
       </div>
 
