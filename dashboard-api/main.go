@@ -396,6 +396,13 @@ type SeriesResp struct {
 
 func parseWindow(w string) (time.Duration, error) {
 	w = strings.TrimSpace(strings.ToLower(w))
+	if strings.HasSuffix(w, "d") {
+		n, err := strconv.Atoi(strings.TrimSuffix(w, "d"))
+		if err != nil || n <= 0 {
+			return 0, fmt.Errorf("window inválida: %s", w)
+		}
+		return time.Duration(n) * 24 * time.Hour, nil
+	}
 	if strings.HasSuffix(w, "h") {
 		n, err := strconv.Atoi(strings.TrimSuffix(w, "h"))
 		if err != nil || n <= 0 {
