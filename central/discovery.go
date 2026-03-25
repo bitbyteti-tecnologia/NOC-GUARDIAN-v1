@@ -149,12 +149,10 @@ func DiscoveryRunHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "tenant_id obrigatório", 400)
 		return
 	}
-	if err := TriggerDiscovery(req.TenantID); err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
 	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+	_ = TriggerDiscovery(req.TenantID)
 }
 
 func TenantDiscoveryHandler(w http.ResponseWriter, r *http.Request) {
@@ -167,25 +165,24 @@ func TenantDiscoveryHandler(w http.ResponseWriter, r *http.Request) {
 	var req DiscoveryRequest
 	_ = json.NewDecoder(r.Body).Decode(&req)
 
-	if len(req.IPs) > 0 || req.SNMP != nil {
-		dbName, err := ResolveTenantDBName(tenantID)
-		if err != nil {
-			http.Error(w, "Tenant inválido", 404)
-			return
-		}
-		if err := SeedTenantDiscovery(tenantID, dbName, req.IPs, req.SNMP); err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-	}
-
-	if err := TriggerDiscovery(tenantID); err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
 	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+
+	go func() {
+		if len(req.IPs) > 0 || req.SNMP != nil {
+			dbName, err := ResolveTenantDBName(tenantID)
+			if err != nil {
+				log.Printf("[discovery] tenant %s resolve db error: %v", tenantID, err)
+				return
+			}
+			if err := SeedTenantDiscovery(tenantID, dbName, req.IPs, req.SNMP); err != nil {
+				log.Printf("[discovery] tenant %s seed error: %v", tenantID, err)
+				return
+			}
+		}
+		_ = TriggerDiscovery(tenantID)
+	}()
 }
 
 func safe(v, def string) string {
