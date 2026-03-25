@@ -415,7 +415,13 @@ RETURNING id::text, hostname, ip`, hostname)
 }
 
 func ensureRelationshipTable(ctx context.Context, dbConn *sql.DB, tenantID string) error {
-	_, err := dbConn.ExecContext(ctx, `
+	tx, err := dbConn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx, `
 CREATE TABLE IF NOT EXISTS device_relationships (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   tenant_id UUID,
@@ -424,28 +430,45 @@ CREATE TABLE IF NOT EXISTS device_relationships (
   relation_type TEXT NOT NULL DEFAULT 'uplink',
   discovered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+);`); err != nil {
+		return err
+	}
 
+	if _, err := tx.ExecContext(ctx, `
 ALTER TABLE device_relationships
   ADD COLUMN IF NOT EXISTS tenant_id UUID,
   ADD COLUMN IF NOT EXISTS relation_type TEXT NOT NULL DEFAULT 'uplink',
   ADD COLUMN IF NOT EXISTS discovered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();`); err != nil {
+		return err
+	}
 
+	if _, err := tx.ExecContext(ctx, `
 UPDATE device_relationships
 SET tenant_id = $1
-WHERE tenant_id IS NULL;
+WHERE tenant_id IS NULL;`, tenantID); err != nil {
+		return err
+	}
 
+	if _, err := tx.ExecContext(ctx, `
 CREATE UNIQUE INDEX IF NOT EXISTS device_relationships_unique
-  ON device_relationships (tenant_id, parent_device_id, child_device_id);
+  ON device_relationships (tenant_id, parent_device_id, child_device_id);`); err != nil {
+		return err
+	}
 
+	if _, err := tx.ExecContext(ctx, `
 CREATE INDEX IF NOT EXISTS idx_device_relationships_parent
-  ON device_relationships (tenant_id, parent_device_id);
+  ON device_relationships (tenant_id, parent_device_id);`); err != nil {
+		return err
+	}
 
+	if _, err := tx.ExecContext(ctx, `
 CREATE INDEX IF NOT EXISTS idx_device_relationships_child
-  ON device_relationships (tenant_id, child_device_id);
-`, tenantID)
-	return err
+  ON device_relationships (tenant_id, child_device_id);`); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func insertRelationship(ctx context.Context, dbConn *sql.DB, tenantID, parentID, childID, relation string) error {
