@@ -62,6 +62,7 @@ Central (`central/.env`):
 
 Dashboard API (`dashboard-api/.env` via compose):
 - `MASTER_DB_*`, `DASH_LISTEN`, `DASHBOARD_SECRET`
+- `ENFORCE_TENANT_HEADER=true` (obrigatorio para isolamento por tenant via header)
 
 Proxy (`proxy/.env`):
 - `TENANT_ID`, `CENTRAL_URL`, `INGEST_ENDPOINT`, `AUTH_TOKEN`
