@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -36,20 +37,24 @@ func TriggerDiscovery(tenantID string) error {
 	payload := DiscoveryRequest{TenantID: tenantID}
 	body, _ := json.Marshal(payload)
 
-	client := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 300 {
-		return fmt.Errorf("discovery status %d", resp.StatusCode)
-	}
+	go func() {
+		client := &http.Client{Timeout: 2 * time.Second}
+		req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+		if err != nil {
+			log.Printf("[discovery] trigger build error: %v", err)
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Printf("[discovery] trigger error: %v", err)
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode >= 300 {
+			log.Printf("[discovery] trigger status %d", resp.StatusCode)
+		}
+	}()
 	return nil
 }
 

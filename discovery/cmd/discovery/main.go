@@ -75,11 +75,13 @@ func main() {
 				http.Error(w, "tenant_id obrigatório", http.StatusBadRequest)
 				return
 			}
-			if err := svc.RunTenant(r.Context(), req.TenantID); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+			go func(tid string) {
+				if err := svc.RunTenant(context.Background(), tid); err != nil {
+					log.Printf("[discovery] run tenant error: %v", err)
+				}
+			}(req.TenantID)
 			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusAccepted)
 			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 		})
 
