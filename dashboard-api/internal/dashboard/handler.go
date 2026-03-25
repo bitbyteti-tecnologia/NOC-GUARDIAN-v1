@@ -25,6 +25,16 @@ func SeriesHandler(svc *Service, writeJSON WriteJSON) http.HandlerFunc {
 		}
 		q := r.URL.Query()
 		tenantID := q.Get("tenant_id")
+		if svc.EnforceTenant {
+			if tid := r.Context().Value("tenant_id"); tid != nil {
+				if v, ok := tid.(string); ok && v != "" {
+					tenantID = v
+				}
+			} else {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+		}
 		metricName := q.Get("metric_name")
 		mode := q.Get("mode")
 		fill := q.Get("fill")

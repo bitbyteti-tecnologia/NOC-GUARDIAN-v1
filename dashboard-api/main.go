@@ -110,17 +110,20 @@ func main() {
 	// Middleware simples de proteção (via Nginx)
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if cfg.DashboardSecret != "" {
+			if !cfg.EnforceTenant && cfg.DashboardSecret != "" {
 				if req.Header.Get("X-Dashboard-Secret") != cfg.DashboardSecret {
 					http.Error(w, "forbidden", http.StatusForbidden)
 					return
 				}
 			}
 			if cfg.EnforceTenant {
-				if tid := req.Header.Get("X-Tenant-Id"); tid != "" {
-					ctx := context.WithValue(req.Context(), "tenant_id", tid)
-					req = req.WithContext(ctx)
+				tid := req.Header.Get("X-Tenant-Id")
+				if tid == "" {
+					http.Error(w, "forbidden", http.StatusForbidden)
+					return
 				}
+				ctx := context.WithValue(req.Context(), "tenant_id", tid)
+				req = req.WithContext(ctx)
 			}
 			next.ServeHTTP(w, req)
 		})
@@ -173,12 +176,13 @@ func main() {
 			}
 			return openTenant(ctx, cfg, tenantID)
 		},
-		OnlineWindow: time.Duration(cfg.OnlineWindowSec) * time.Second,
-		LogPrefix:    "[dashboard] ",
-		Cache:        cache,
-		CacheTTL:     time.Duration(cfg.CacheTTLSeconds) * time.Second,
-		MaxPoints:    cfg.MaxSeriesPoints,
-		SchemaCache:  dashboard.NewSchemaCache(10*time.Minute, "[dashboard] "),
+		OnlineWindow:  time.Duration(cfg.OnlineWindowSec) * time.Second,
+		LogPrefix:     "[dashboard] ",
+		Cache:         cache,
+		CacheTTL:      time.Duration(cfg.CacheTTLSeconds) * time.Second,
+		MaxPoints:     cfg.MaxSeriesPoints,
+		SchemaCache:   dashboard.NewSchemaCache(10*time.Minute, "[dashboard] "),
+		EnforceTenant: cfg.EnforceTenant,
 	}
 	dashboard.RegisterRoutes(r, dashSvc, writeJSON)
 	r.Get("/api/v1/dashboard/series", dashboard.SeriesHandler(dashSvc, writeJSON))
@@ -187,7 +191,8 @@ func main() {
 		OpenTenant: func(ctx context.Context, tenantID string) (*sql.DB, string, error) {
 			return openTenant(ctx, cfg, tenantID)
 		},
-		LogPrefix: "[intelligence] ",
+		LogPrefix:     "[intelligence] ",
+		EnforceTenant: cfg.EnforceTenant,
 	}
 	intelligence.RegisterRoutes(r, intSvc, writeJSON)
 	r.Get("/api/v1/dashboard/intelligence", intelligence.IntelligenceHandler(intSvc, writeJSON))

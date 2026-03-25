@@ -12,13 +12,14 @@ import (
 type TenantOpener func(ctx context.Context, tenantID string) (*sql.DB, string, error)
 
 type Service struct {
-	OpenTenant   TenantOpener
-	OnlineWindow time.Duration
-	LogPrefix    string
-	Cache        Cache
-	CacheTTL     time.Duration
-	MaxPoints    int
-	SchemaCache  *SchemaCache
+	OpenTenant    TenantOpener
+	OnlineWindow  time.Duration
+	LogPrefix     string
+	Cache         Cache
+	CacheTTL      time.Duration
+	MaxPoints     int
+	SchemaCache   *SchemaCache
+	EnforceTenant bool
 }
 
 func (s *Service) AggregateSeries(ctx context.Context, req AggregateRequest) (AggregateResponse, error) {

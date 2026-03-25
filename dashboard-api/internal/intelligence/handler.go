@@ -21,6 +21,16 @@ func IntelligenceHandler(svc *Service, writeJSON WriteJSON) http.HandlerFunc {
 			return
 		}
 		tenantID := r.URL.Query().Get("tenant_id")
+		if svc.EnforceTenant {
+			if tid := r.Context().Value("tenant_id"); tid != nil {
+				if v, ok := tid.(string); ok && v != "" {
+					tenantID = v
+				}
+			} else {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+		}
 		resp, err := svc.Build(r.Context(), tenantID)
 		writeJSON(w, resp, err)
 	}

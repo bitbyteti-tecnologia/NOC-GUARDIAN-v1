@@ -101,7 +101,11 @@ export default function Customer() {
     setIntelLoading(true);
     setIntelError(false);
     try {
-      const r = await api.get(`/api/v1/dashboard/intelligence?tenant_id=${encodeURIComponent(tenantId)}`);
+      const r = await api.get(`/api/v1/dashboard/intelligence`, {
+        headers: {
+          "X-Tenant-Id": tenantId,
+        },
+      });
       setIntel(r.data || null);
     } catch {
       setIntel(null);

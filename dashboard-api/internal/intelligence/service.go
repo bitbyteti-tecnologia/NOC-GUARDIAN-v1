@@ -13,9 +13,10 @@ import (
 type TenantOpener func(ctx context.Context, tenantID string) (*sql.DB, string, error)
 
 type Service struct {
-	OpenTenant   TenantOpener
-	LogPrefix    string
-	OnlineWindow time.Duration
+	OpenTenant    TenantOpener
+	LogPrefix     string
+	OnlineWindow  time.Duration
+	EnforceTenant bool
 }
 
 func (s *Service) Build(ctx context.Context, tenantID string) (IntelligenceResponse, error) {
