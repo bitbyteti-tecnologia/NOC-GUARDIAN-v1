@@ -17,6 +17,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"dashboard-api/internal/dashboard"
+	"dashboard-api/internal/intelligence"
 )
 
 type Config struct {
@@ -177,9 +178,19 @@ func main() {
 		Cache:        cache,
 		CacheTTL:     time.Duration(cfg.CacheTTLSeconds) * time.Second,
 		MaxPoints:    cfg.MaxSeriesPoints,
+		SchemaCache:  dashboard.NewSchemaCache(10*time.Minute, "[dashboard] "),
 	}
 	dashboard.RegisterRoutes(r, dashSvc, writeJSON)
 	r.Get("/api/v1/dashboard/series", dashboard.SeriesHandler(dashSvc, writeJSON))
+
+	intSvc := &intelligence.Service{
+		OpenTenant: func(ctx context.Context, tenantID string) (*sql.DB, string, error) {
+			return openTenant(ctx, cfg, tenantID)
+		},
+		LogPrefix: "[intelligence] ",
+	}
+	intelligence.RegisterRoutes(r, intSvc, writeJSON)
+	r.Get("/api/v1/dashboard/intelligence", intelligence.IntelligenceHandler(intSvc, writeJSON))
 
 	log.Printf("dashboard-api listening on %s\n", cfg.ListenAddr)
 	if err := http.ListenAndServe(cfg.ListenAddr, r); err != nil {

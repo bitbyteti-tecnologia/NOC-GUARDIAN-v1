@@ -18,6 +18,7 @@ type Service struct {
 	Cache        Cache
 	CacheTTL     time.Duration
 	MaxPoints    int
+	SchemaCache  *SchemaCache
 }
 
 func (s *Service) AggregateSeries(ctx context.Context, req AggregateRequest) (AggregateResponse, error) {
@@ -88,9 +89,32 @@ func (s *Service) AggregateSeries(ctx context.Context, req AggregateRequest) (Ag
 	defer db.Close()
 
 	repo := NewRepository(db)
+	schema := SchemaV1
+	if s.SchemaCache != nil {
+		if cached, ok := s.SchemaCache.Get(req.TenantID); ok {
+			schema = cached
+		} else {
+			detected, err := repo.DetectSchema(ctx)
+			if err != nil || detected == SchemaUnknown {
+				log.Printf("%sschema detect failed tenant=%s err=%v (fallback v1)", s.LogPrefix, req.TenantID, err)
+				schema = SchemaV1
+			} else {
+				schema = detected
+			}
+			s.SchemaCache.Set(req.TenantID, schema)
+		}
+	} else {
+		detected, err := repo.DetectSchema(ctx)
+		if err != nil || detected == SchemaUnknown {
+			log.Printf("%sschema detect failed tenant=%s err=%v (fallback v1)", s.LogPrefix, req.TenantID, err)
+			schema = SchemaV1
+		} else {
+			schema = detected
+		}
+	}
 
 	start := time.Now()
-	points, err := repo.QueryAggregate(ctx, req)
+	points, err := repo.QueryAggregate(ctx, req, schema)
 	elapsed := time.Since(start)
 	if err != nil {
 		return AggregateResponse{}, err
