@@ -65,6 +65,25 @@ services:
       - DASHBOARD_SECRET=ea31b19b1ea238f7cc99fedb6a1da55411f6afb6ceae1f70438c9a5c85732cf3
       - ENFORCE_TENANT_HEADER=true
 
+  discovery:
+    build:
+      context: ../discovery
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nocnet
+    environment:
+      - MASTER_DB_HOST=db
+      - MASTER_DB_PORT=5432
+      - MASTER_DB_USER=guardian
+      - MASTER_DB_PASS=guardian_strong_password
+      - MASTER_DB_NAME=guardian_master
+      - DISCOVERY_INTERVAL_SEC=600
+      - SNMP_COMMUNITY=public
+      - SNMP_VERSION=2c
+
   nginx:
     image: nginx:1.25-alpine
     volumes:
