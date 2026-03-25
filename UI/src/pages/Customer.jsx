@@ -3,6 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import api from "../lib/api";
 import HostDrawer from "../components/HostDrawer";
 import { computeHostSeverity } from "../features/telemetry/health";
+import { useTelemetryFromApi } from "../features/telemetry/integrations/useTelemetryFromApi";
+import { LanBandwidthCard } from "../features/telemetry/components/LanBandwidthCard";
+import { WanPerformanceCard } from "../features/telemetry/components/WanPerformanceCard";
 import useMe from "../hooks/useMe";
 
 function fmtDate(iso) {
@@ -169,6 +172,32 @@ export default function Customer() {
     [hostsSorted, expandedHost]
   );
 
+  const tenantTelemetryHost = useMemo(() => {
+    const arr = Array.isArray(hostsSorted) ? hostsSorted : [];
+    if (!arr.length) return null;
+    const online = arr.filter((h) => h.status === "ONLINE");
+    if (online.length) return online[0];
+    return arr[0];
+  }, [hostsSorted]);
+
+  const { vm: lanVM } = useTelemetryFromApi({
+    api,
+    tenantId,
+    host: tenantTelemetryHost,
+    window: "24h",
+    enabled: Boolean(tenantTelemetryHost),
+    pollMs: 60000,
+  });
+
+  const { vm: wanVM } = useTelemetryFromApi({
+    api,
+    tenantId,
+    host: tenantTelemetryHost,
+    window: "30d",
+    enabled: Boolean(tenantTelemetryHost),
+    pollMs: 300000,
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
@@ -223,6 +252,29 @@ export default function Customer() {
               <div className="text-xs text-slate-400 mt-1">{d.file}</div>
             </a>
           ))}
+        </div>
+      </div>
+
+      {/* Bloco de telemetria WAN/LAN do tenant */}
+      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div>
+            <div className="font-semibold text-slate-100">Telemetria de Rede</div>
+            <div className="text-xs text-slate-400 mt-1">
+              Baseado no host{" "}
+              <span className="text-slate-200 font-semibold">
+                {tenantTelemetryHost?.hostname || "não selecionado"}
+              </span>
+              .
+            </div>
+          </div>
+          <div className="text-xs text-slate-500">
+            Janelas: LAN 24h | WAN 30d
+          </div>
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <LanBandwidthCard series={lanVM?.lan?.series} />
+          <WanPerformanceCard series={wanVM?.wan?.series} />
         </div>
       </div>
 

@@ -1,0 +1,23 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: noc
+      POSTGRES_PASSWORD: noc
+      POSTGRES_DB: nocguardian
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_async_data:/var/lib/postgresql/data
+
+volumes:
+  pg_async_data:

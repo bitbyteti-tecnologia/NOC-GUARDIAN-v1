@@ -5,8 +5,6 @@ import CpuExtraInfo from "../../components/CpuExtraInfo";
 import { NetworkUsageCard } from "./components/NetworkUsageCard";
 import { DiskIoCard } from "./components/DiskIoCard";
 import { TelemetryStatusCard } from "./components/TelemetryStatusCard";
-import { LanBandwidthCard } from "./components/LanBandwidthCard";
-import { WanPerformanceCard } from "./components/WanPerformanceCard";
 
 export function TelemetryDashboard({ raw, fieldMap, vm }) {
   const computed = useMemo(() => {
@@ -40,8 +38,6 @@ export function TelemetryDashboard({ raw, fieldMap, vm }) {
         </div>
       </div>
       <NetworkUsageCard current={computed.network?.current} series={computed.network?.series} />
-      <LanBandwidthCard series={computed.lan?.series} />
-      <WanPerformanceCard series={computed.wan?.series} />
       <DiskIoCard current={computed.diskIO?.current} series={computed.diskIO?.series} />
       <TelemetryStatusCard flags={computed.flags} alerts={computed.alerts} />
     </div>
