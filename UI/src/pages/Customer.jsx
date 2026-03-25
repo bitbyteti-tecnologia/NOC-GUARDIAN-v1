@@ -370,6 +370,30 @@ export default function Customer() {
             <div className="text-xs text-slate-400 mt-1">
               Informe IPs e inicie o scan para popular devices e topologia.
             </div>
+            {scanLoading && (
+              <div className="mt-3 flex items-center gap-3 text-xs text-slate-300">
+                <div className="relative h-7 w-7">
+                  <div className="absolute inset-0 rounded-full border border-sky-500/40 animate-ping" />
+                  <div className="absolute inset-0 rounded-full border border-sky-400/60" />
+                  <svg
+                    className="absolute inset-0 m-auto h-4 w-4 text-sky-300 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="11" cy="11" r="6" />
+                    <line x1="16" y1="16" x2="21" y2="21" />
+                  </svg>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>Escaneando rede...</span>
+                  <div className="h-1 w-24 rounded-full bg-slate-800 overflow-hidden">
+                    <div className="h-full w-1/2 bg-sky-500/60 animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <button
             className="px-3 py-2 bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 text-xs"
