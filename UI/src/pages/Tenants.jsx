@@ -16,6 +16,7 @@ export default function Tenants() {
   const [summaries, setSummaries] = useState({}); // { [tenantId]: {total_hosts, online, offline, ...} }
   const [onlyActive, setOnlyActive] = useState(true);
   const [loadingSummaries, setLoadingSummaries] = useState(false);
+  const [discoveryLoading, setDiscoveryLoading] = useState({});
 
   const [searchParams] = useSearchParams();
   const highlight = searchParams.get("highlight");
@@ -56,6 +57,19 @@ export default function Tenants() {
       setSummaries(map);
     } finally {
       setLoadingSummaries(false);
+    }
+  }
+
+  async function runDiscovery(tenantId) {
+    if (!tenantId) return;
+    setDiscoveryLoading((s) => ({ ...s, [tenantId]: true }));
+    try {
+      await api.post(`/api/v1/tenants/${tenantId}/discovery`, {});
+      await loadSummaries(tenants);
+    } catch {
+      // silencioso por ora
+    } finally {
+      setDiscoveryLoading((s) => ({ ...s, [tenantId]: false }));
     }
   }
 
@@ -190,6 +204,20 @@ export default function Tenants() {
                   | Offline: <b className="text-slate-300">{summaries[t.id].offline ?? "-"}</b>
                 </div>
               )}
+
+              <div className="mt-3">
+                <button
+                  className="px-3 py-1.5 text-xs rounded bg-slate-800 hover:bg-slate-700"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    runDiscovery(t.id);
+                  }}
+                  disabled={Boolean(discoveryLoading[t.id])}
+                >
+                  {discoveryLoading[t.id] ? "Atualizando..." : "Atualizar topologia"}
+                </button>
+              </div>
             </Link>
           );
         })}
