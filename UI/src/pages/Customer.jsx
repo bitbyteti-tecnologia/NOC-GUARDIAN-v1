@@ -66,6 +66,10 @@ export default function Customer() {
   const [incidentLoading, setIncidentLoading] = useState(false);
   const [incidentError, setIncidentError] = useState(false);
   const [incidentDetails, setIncidentDetails] = useState(null);
+  const [scanIPs, setScanIPs] = useState("");
+  const [scanCommunity, setScanCommunity] = useState("");
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanMsg, setScanMsg] = useState("");
   const [topology, setTopology] = useState(null);
   const [topologyLoading, setTopologyLoading] = useState(false);
   const [topologyError, setTopologyError] = useState(false);
@@ -160,6 +164,32 @@ export default function Customer() {
       setTopologyError(true);
     } finally {
       setTopologyLoading(false);
+    }
+  }
+
+  async function runDiscovery() {
+    if (!tenantId) return;
+    setScanLoading(true);
+    setScanMsg("");
+    const ips = String(scanIPs || "")
+      .split(/[\n,;\s]+/g)
+      .map((v) => v.trim())
+      .filter(Boolean);
+    const payload = {
+      ips,
+      snmp: scanCommunity
+        ? { version: "v2c", community: scanCommunity }
+        : null,
+    };
+    try {
+      await api.post(`/api/v1/tenants/${tenantId}/discovery`, payload);
+      setScanMsg("Discovery iniciado. Aguarde alguns minutos.");
+      loadTopology();
+      loadAll();
+    } catch {
+      setScanMsg("Falha ao iniciar discovery. Verifique permissões e credenciais.");
+    } finally {
+      setScanLoading(false);
     }
   }
 
@@ -329,6 +359,51 @@ export default function Customer() {
             </a>
           ))}
         </div>
+      </div>
+
+      {/* Discovery manual para clientes existentes */}
+      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div>
+            <div className="font-semibold text-slate-100">Discovery de Rede</div>
+            <div className="text-xs text-slate-400 mt-1">
+              Informe IPs e inicie o scan para popular devices e topologia.
+            </div>
+          </div>
+          <button
+            className="px-3 py-2 bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 text-xs"
+            onClick={runDiscovery}
+            disabled={scanLoading}
+          >
+            {scanLoading ? "Iniciando..." : "Iniciar scan"}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-slate-400">IPs da rede</label>
+            <textarea
+              className="w-full p-2 rounded text-slate-900 min-h-[80px]"
+              value={scanIPs}
+              onChange={(e) => setScanIPs(e.target.value)}
+              placeholder="Ex: 10.0.0.1, 10.0.0.2 ou um IP por linha"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-slate-400">SNMP Community (v2c)</label>
+            <input
+              className="w-full p-2 rounded text-slate-900"
+              value={scanCommunity}
+              onChange={(e) => setScanCommunity(e.target.value)}
+              placeholder="public"
+            />
+            <div className="text-xs text-slate-500 mt-2">
+              Se vazio, usa community padrão do servidor.
+            </div>
+          </div>
+        </div>
+
+        {scanMsg && <div className="text-xs text-slate-300 mt-3">{scanMsg}</div>}
       </div>
 
       {/* Inteligência do Tenant */}
