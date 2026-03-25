@@ -15,10 +15,10 @@ function layoutNodes(nodes, edges) {
   if (!nodes.length) return [];
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "LR", nodesep: 50, ranksep: 100, marginx: 20, marginy: 20 });
+  g.setGraph({ rankdir: "TB", nodesep: 50, ranksep: 90, marginx: 20, marginy: 20 });
 
   nodes.forEach((n) => {
-    g.setNode(n.id, { width: 180, height: 70 });
+    g.setNode(n.id, { width: 180, height: 60 });
   });
   edges.forEach((e) => {
     g.setEdge(e.source, e.target);
@@ -31,7 +31,7 @@ function layoutNodes(nodes, edges) {
     if (!pos) return n;
     return {
       ...n,
-      position: { x: pos.x - 90, y: pos.y - 35 },
+      position: { x: pos.x - 90, y: pos.y - 30 },
     };
   });
 }
@@ -101,9 +101,32 @@ export default function TopologyCard({ data, loading, error }) {
   const { nodes, edges, roots } = useMemo(() => {
     const rawNodes = Array.isArray(data?.nodes) ? data.nodes : [];
     const rawEdges = Array.isArray(data?.edges) ? data.edges : [];
-    const roots = rawNodes.filter((n) => n.root);
+    const nodesMap = new Map();
+    rawNodes.forEach((n) => {
+      if (!n?.id) return;
+      nodesMap.set(n.id, n);
+    });
+    const uniqueNodes = Array.from(nodesMap.values());
 
-    const flowNodes = rawNodes.map((n) => ({
+    const edgeKeys = new Set();
+    const uniqueEdges = rawEdges.filter((e) => {
+      if (!e?.source || !e?.target) return false;
+      const key = `${e.source}-${e.target}`;
+      if (edgeKeys.has(key)) return false;
+      edgeKeys.add(key);
+      return true;
+    });
+
+    if (import.meta.env?.DEV) {
+      // logs temporários para diagnóstico
+      // eslint-disable-next-line no-console
+      console.log("topology nodes", uniqueNodes);
+      // eslint-disable-next-line no-console
+      console.log("topology edges", uniqueEdges);
+    }
+    const roots = uniqueNodes.filter((n) => n.root);
+
+    const flowNodes = uniqueNodes.map((n) => ({
       id: n.id,
       type: "device",
       data: {
@@ -117,7 +140,7 @@ export default function TopologyCard({ data, loading, error }) {
       },
     }));
 
-    const flowEdges = rawEdges.map((e, i) => ({
+    const flowEdges = uniqueEdges.map((e, i) => ({
       id: `${e.source}-${e.target}-${i}`,
       source: e.source,
       target: e.target,

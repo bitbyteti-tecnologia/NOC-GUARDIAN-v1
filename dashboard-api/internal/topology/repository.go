@@ -30,7 +30,7 @@ func (r *Repository) ListRelationships(ctx context.Context) ([]Edge, error) {
 		return []Edge{}, err
 	}
 	rows, err := r.db.QueryContext(ctx, `
-SELECT parent_device_id::text, child_device_id::text, relation_type
+SELECT DISTINCT parent_device_id::text, child_device_id::text, relation_type
 FROM device_relationships`)
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func (r *Repository) ListDevices(ctx context.Context) ([]Node, error) {
 		return []Node{}, err
 	}
 	rows, err := r.db.QueryContext(ctx, `
-SELECT id::text, hostname, last_seen
+SELECT DISTINCT id::text, hostname, last_seen
 FROM devices
 ORDER BY hostname`)
 	if err != nil {
