@@ -381,12 +381,12 @@ export default function Customer() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-slate-400">IPs da rede</label>
+            <label className="text-xs text-slate-400">IPs ou CIDR</label>
             <textarea
               className="w-full p-2 rounded text-slate-900 min-h-[80px]"
               value={scanIPs}
               onChange={(e) => setScanIPs(e.target.value)}
-              placeholder="Ex: 10.0.0.1, 10.0.0.2 ou um IP por linha"
+              placeholder="Ex: 10.0.0.1, 10.0.0.2, 192.168.1.0/24"
             />
           </div>
           <div>

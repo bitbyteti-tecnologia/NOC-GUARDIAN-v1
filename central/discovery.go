@@ -109,20 +109,23 @@ RETURNING id::text`, tenantID, safe(snmp.Version, "v2c"), snmp.Community, snmp.U
 		if ip == "" {
 			continue
 		}
-		if net.ParseIP(ip) == nil {
-			return errors.New("IP inválido: " + ip)
+		list, err := expandIPs(ip, 1024)
+		if err != nil {
+			return err
 		}
-		hostname := ip
-		_, err := conn.Exec(context.Background(), `
+		for _, addr := range list {
+			hostname := addr
+			_, err := conn.Exec(context.Background(), `
 INSERT INTO devices (hostname, ip, ip_address, type, os, snmp_credential_id)
 VALUES ($1, $2, $3, 'network', 'unknown', NULLIF($4,'')::uuid)
 ON CONFLICT (hostname) DO UPDATE
   SET ip = EXCLUDED.ip,
       ip_address = EXCLUDED.ip_address,
       snmp_credential_id = COALESCE(EXCLUDED.snmp_credential_id, devices.snmp_credential_id)
-`, hostname, ip, ip, deref(credID))
-		if err != nil {
-			return err
+`, hostname, addr, addr, deref(credID))
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -189,4 +192,39 @@ func deref(v *string) string {
 		return ""
 	}
 	return *v
+}
+
+func expandIPs(input string, maxHosts int) ([]string, error) {
+	if ip := net.ParseIP(input); ip != nil {
+		return []string{ip.String()}, nil
+	}
+	// CIDR
+	_, ipnet, err := net.ParseCIDR(input)
+	if err != nil {
+		return nil, errors.New("IP/CIDR inválido: " + input)
+	}
+	ones, bits := ipnet.Mask.Size()
+	if bits != 32 {
+		return nil, errors.New("CIDR IPv6 não suportado: " + input)
+	}
+	hostCount := 1 << (bits - ones)
+	if hostCount > maxHosts {
+		return nil, fmt.Errorf("CIDR muito grande (%d hosts). Limite: %d", hostCount, maxHosts)
+	}
+	out := make([]string, 0, hostCount)
+	ip := ipnet.IP.To4()
+	if ip == nil {
+		return nil, errors.New("CIDR inválido: " + input)
+	}
+	for i := 0; i < hostCount; i++ {
+		cur := make(net.IP, len(ip))
+		copy(cur, ip)
+		cur[3] += byte(i)
+		// pula network e broadcast
+		if i == 0 || i == hostCount-1 {
+			continue
+		}
+		out = append(out, cur.String())
+	}
+	return out, nil
 }
