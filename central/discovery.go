@@ -120,7 +120,7 @@ RETURNING id::text`, tenantID, safe(snmp.Version, "v2c"), snmp.Community, snmp.U
 			hostname := addr
 			_, err := conn.Exec(context.Background(), `
 INSERT INTO devices (hostname, ip, ip_address, type, os, snmp_credential_id)
-VALUES ($1, $2, $3, 'network', 'unknown', NULLIF($4,'')::uuid)
+VALUES ($1, $2::inet, $3, 'network', 'unknown', NULLIF($4,'')::uuid)
 ON CONFLICT (hostname) DO UPDATE
   SET ip = EXCLUDED.ip,
       ip_address = EXCLUDED.ip_address,
