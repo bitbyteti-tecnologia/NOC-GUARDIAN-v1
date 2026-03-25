@@ -17,6 +17,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"dashboard-api/internal/dashboard"
+	"dashboard-api/internal/incidents"
 	"dashboard-api/internal/intelligence"
 )
 
@@ -196,6 +197,16 @@ func main() {
 	}
 	intelligence.RegisterRoutes(r, intSvc, writeJSON)
 	r.Get("/api/v1/dashboard/intelligence", intelligence.IntelligenceHandler(intSvc, writeJSON))
+
+	incSvc := &incidents.Service{
+		OpenTenant: func(ctx context.Context, tenantID string) (*sql.DB, string, error) {
+			return openTenant(ctx, cfg, tenantID)
+		},
+		LogPrefix:     "[incidents] ",
+		EnforceTenant: cfg.EnforceTenant,
+	}
+	incidents.RegisterRoutes(r, incSvc, writeJSON)
+	r.Get("/api/v1/dashboard/incidents/{id}/details", incidents.DetailsHandler(incSvc, writeJSON))
 
 	log.Printf("dashboard-api listening on %s\n", cfg.ListenAddr)
 	if err := http.ListenAndServe(cfg.ListenAddr, r); err != nil {

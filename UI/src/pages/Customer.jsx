@@ -10,6 +10,7 @@ import HealthCard from "../components/dashboard/HealthCard";
 import IncidentsCard from "../components/dashboard/IncidentsCard";
 import InsightsCard from "../components/dashboard/InsightsCard";
 import RecommendationsCard from "../components/dashboard/RecommendationsCard";
+import IncidentDrawer from "../components/dashboard/IncidentDrawer";
 import useMe from "../hooks/useMe";
 
 function fmtDate(iso) {
@@ -60,6 +61,10 @@ export default function Customer() {
   const [intel, setIntel] = useState(null);
   const [intelLoading, setIntelLoading] = useState(false);
   const [intelError, setIntelError] = useState(false);
+  const [incidentOpen, setIncidentOpen] = useState(false);
+  const [incidentLoading, setIncidentLoading] = useState(false);
+  const [incidentError, setIncidentError] = useState(false);
+  const [incidentDetails, setIncidentDetails] = useState(null);
   const downloads = [
     { label: "Windows (MSI)", file: "nocguardian-agent.msi" },
     { label: "Linux ARM64 (.deb)", file: "nocguardian-agent_arm64.deb" },
@@ -112,6 +117,26 @@ export default function Customer() {
       setIntelError(true);
     } finally {
       setIntelLoading(false);
+    }
+  }
+
+  async function openIncident(inc) {
+    if (!inc?.incident_id || !tenantId) return;
+    setIncidentOpen(true);
+    setIncidentLoading(true);
+    setIncidentError(false);
+    try {
+      const r = await api.get(`/api/v1/dashboard/incidents/${encodeURIComponent(inc.incident_id)}/details`, {
+        headers: {
+          "X-Tenant-Id": tenantId,
+        },
+      });
+      setIncidentDetails(r.data || null);
+    } catch {
+      setIncidentDetails(null);
+      setIncidentError(true);
+    } finally {
+      setIncidentLoading(false);
     }
   }
 
@@ -304,7 +329,7 @@ export default function Customer() {
           <div className="xl:col-span-2">
             <HealthCard data={intel} loading={intelLoading} error={intelError} />
           </div>
-          <IncidentsCard items={intel?.top_incidents || []} loading={intelLoading} error={intelError} />
+          <IncidentsCard items={intel?.top_incidents || []} loading={intelLoading} error={intelError} onSelect={openIncident} />
           <InsightsCard items={intel?.insights || []} loading={intelLoading} error={intelError} />
           <RecommendationsCard items={intel?.recommendations || []} loading={intelLoading} error={intelError} />
         </div>
@@ -332,6 +357,14 @@ export default function Customer() {
           <WanPerformanceCard series={wanVM?.wan?.series} />
         </div>
       </div>
+
+      <IncidentDrawer
+        open={incidentOpen}
+        onClose={() => setIncidentOpen(false)}
+        loading={incidentLoading}
+        error={incidentError}
+        data={incidentDetails}
+      />
 
       {/* HOSTS table + inline drawer */}
       <div className="rounded-xl border border-slate-800 bg-slate-950/50 overflow-hidden">

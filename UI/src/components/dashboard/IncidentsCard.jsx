@@ -15,7 +15,7 @@ function SkeletonRow({ i }) {
   );
 }
 
-export default function IncidentsCard({ items = [], loading, error }) {
+export default function IncidentsCard({ items = [], loading, error, onSelect }) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-5 shadow-lg">
       <div className="flex items-center justify-between">
@@ -32,7 +32,11 @@ export default function IncidentsCard({ items = [], loading, error }) {
           <div className="text-sm text-slate-400">Nenhum incidente ativo.</div>
         ) : (
           items.map((inc) => (
-            <div key={inc.incident_id || inc.id} className="flex items-center justify-between gap-3">
+            <button
+              key={inc.incident_id || inc.id}
+              onClick={() => onSelect?.(inc)}
+              className="w-full text-left flex items-center justify-between gap-3 hover:bg-slate-900/40 rounded-lg px-2 py-2 transition"
+            >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className={["px-2 py-0.5 rounded-full text-xs border", sevBadge(inc.severity)].join(" ")}
@@ -51,7 +55,7 @@ export default function IncidentsCard({ items = [], loading, error }) {
                 <div className="text-xs text-slate-400">Prioridade</div>
                 <div className="text-sm font-semibold text-slate-100">{inc.priority_score ?? 0}</div>
               </div>
-            </div>
+            </button>
           ))
         )}
       </div>
