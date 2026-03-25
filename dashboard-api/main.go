@@ -19,6 +19,7 @@ import (
 	"dashboard-api/internal/dashboard"
 	"dashboard-api/internal/incidents"
 	"dashboard-api/internal/intelligence"
+	"dashboard-api/internal/topology"
 )
 
 type Config struct {
@@ -207,6 +208,16 @@ func main() {
 	}
 	incidents.RegisterRoutes(r, incSvc, writeJSON)
 	r.Get("/api/v1/dashboard/incidents/{id}/details", incidents.DetailsHandler(incSvc, writeJSON))
+
+	topSvc := &topology.Service{
+		OpenTenant: func(ctx context.Context, tenantID string) (*sql.DB, string, error) {
+			return openTenant(ctx, cfg, tenantID)
+		},
+		LogPrefix:     "[topology] ",
+		EnforceTenant: cfg.EnforceTenant,
+	}
+	topology.RegisterRoutes(r, topSvc, writeJSON)
+	r.Get("/api/v1/dashboard/topology", topology.TopologyHandler(topSvc, writeJSON))
 
 	log.Printf("dashboard-api listening on %s\n", cfg.ListenAddr)
 	if err := http.ListenAndServe(cfg.ListenAddr, r); err != nil {

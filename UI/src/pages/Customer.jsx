@@ -11,6 +11,7 @@ import IncidentsCard from "../components/dashboard/IncidentsCard";
 import InsightsCard from "../components/dashboard/InsightsCard";
 import RecommendationsCard from "../components/dashboard/RecommendationsCard";
 import IncidentDrawer from "../components/dashboard/IncidentDrawer";
+import TopologyCard from "../components/dashboard/TopologyCard";
 import useMe from "../hooks/useMe";
 
 function fmtDate(iso) {
@@ -65,6 +66,9 @@ export default function Customer() {
   const [incidentLoading, setIncidentLoading] = useState(false);
   const [incidentError, setIncidentError] = useState(false);
   const [incidentDetails, setIncidentDetails] = useState(null);
+  const [topology, setTopology] = useState(null);
+  const [topologyLoading, setTopologyLoading] = useState(false);
+  const [topologyError, setTopologyError] = useState(false);
   const downloads = [
     { label: "Windows (MSI)", file: "nocguardian-agent.msi" },
     { label: "Linux ARM64 (.deb)", file: "nocguardian-agent_arm64.deb" },
@@ -140,10 +144,30 @@ export default function Customer() {
     }
   }
 
+  async function loadTopology() {
+    if (!tenantId) return;
+    setTopologyLoading(true);
+    setTopologyError(false);
+    try {
+      const r = await api.get(`/api/v1/dashboard/topology`, {
+        headers: {
+          "X-Tenant-Id": tenantId,
+        },
+      });
+      setTopology(r.data || null);
+    } catch {
+      setTopology(null);
+      setTopologyError(true);
+    } finally {
+      setTopologyLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadAll();
     loadTenantInfo();
     loadIntelligence();
+    loadTopology();
     // eslint-disable-next-line
   }, [tenantId]);
 
@@ -333,6 +357,26 @@ export default function Customer() {
           <InsightsCard items={intel?.insights || []} loading={intelLoading} error={intelError} />
           <RecommendationsCard items={intel?.recommendations || []} loading={intelLoading} error={intelError} />
         </div>
+      </div>
+
+      {/* Topologia do cliente */}
+      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div>
+            <div className="font-semibold text-slate-100">Topologia</div>
+            <div className="text-xs text-slate-400 mt-1">
+              Conexões entre dispositivos e identificação de causa raiz.
+            </div>
+          </div>
+          <button
+            className="px-3 py-2 bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 text-xs"
+            onClick={loadTopology}
+            disabled={topologyLoading}
+          >
+            {topologyLoading ? "..." : "Atualizar"}
+          </button>
+        </div>
+        <TopologyCard data={topology} loading={topologyLoading} error={topologyError} />
       </div>
 
       {/* Bloco de telemetria WAN/LAN do tenant */}
