@@ -63,6 +63,7 @@ services:
       - MASTER_DB_NAME=guardian_master
       - DASH_LISTEN=:8090
       - DASHBOARD_SECRET=ea31b19b1ea238f7cc99fedb6a1da55411f6afb6ceae1f70438c9a5c85732cf3
+      - ENFORCE_TENANT_HEADER=true
 
   nginx:
     image: nginx:1.25-alpine
