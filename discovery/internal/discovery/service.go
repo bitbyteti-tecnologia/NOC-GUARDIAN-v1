@@ -56,6 +56,21 @@ func (s *Service) RunOnce(ctx context.Context) {
 	log.Printf("%sdiscovery done in %s", s.LogPrefix, time.Since(start))
 }
 
+func (s *Service) RunTenant(ctx context.Context, tenantID string) error {
+	master, err := db.Open(ctx, db.DSN(s.MasterHost, s.MasterPort, s.MasterUser, s.MasterPass, s.MasterDB))
+	if err != nil {
+		return err
+	}
+	defer master.Close()
+
+	row := master.QueryRowContext(ctx, `SELECT id::text, db_name FROM tenants WHERE id=$1`, tenantID)
+	var t Tenant
+	if err := row.Scan(&t.ID, &t.DBName); err != nil {
+		return err
+	}
+	return s.processTenant(ctx, t)
+}
+
 func (s *Service) processTenant(ctx context.Context, t Tenant) error {
 	tenantDB, err := db.Open(ctx, db.DSN(s.MasterHost, s.MasterPort, s.MasterUser, s.MasterPass, t.DBName))
 	if err != nil {
@@ -70,6 +85,15 @@ func (s *Service) processTenant(ctx context.Context, t Tenant) error {
 	devices, err := listDevices(ctx, tenantDB)
 	if err != nil {
 		return err
+	}
+
+	creds, err := listCredentials(ctx, tenantDB, t.ID)
+	if err != nil {
+		return err
+	}
+	credByID := map[string]SNMPCredential{}
+	for _, c := range creds {
+		credByID[c.ID] = c
 	}
 
 	if len(devices) == 0 {
@@ -101,7 +125,11 @@ func (s *Service) processTenant(ctx context.Context, t Tenant) error {
 		if d.IP == "" {
 			continue
 		}
-		neighbors, err := s.snmpNeighbors(d.IP)
+		cred, ok := credByID[d.CredID]
+		if !ok {
+			cred = SNMPCredential{Version: "v2c", Community: s.SNMPCommunity}
+		}
+		neighbors, err := s.snmpNeighbors(d.IP, cred)
 		if err != nil {
 			log.Printf("%stenant=%s device=%s snmp error: %v", s.LogPrefix, t.ID, d.Hostname, err)
 			continue
@@ -140,18 +168,10 @@ func (s *Service) processTenant(ctx context.Context, t Tenant) error {
 	return nil
 }
 
-func (s *Service) snmpNeighbors(ip string) ([]Neighbor, error) {
-	if s.SNMPVersion != "2c" && s.SNMPVersion != "2" {
-		return nil, ErrUnsupportedVersion
-	}
-
-	g := &gosnmp.GoSNMP{
-		Target:    ip,
-		Port:      s.SNMPPort,
-		Community: s.SNMPCommunity,
-		Version:   gosnmp.Version2c,
-		Timeout:   s.SNMPTimeout,
-		Retries:   s.SNMPRetries,
+func (s *Service) snmpNeighbors(ip string, cred SNMPCredential) ([]Neighbor, error) {
+	g, err := buildSNMPClient(ip, s.SNMPPort, s.SNMPTimeout, s.SNMPRetries, cred)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := g.Connect(); err != nil {
@@ -173,6 +193,87 @@ func (s *Service) snmpNeighbors(ip string) ([]Neighbor, error) {
 
 var ErrUnsupportedVersion = errors.New("snmp version not supported")
 
+func buildSNMPClient(ip string, port uint16, timeout time.Duration, retries int, cred SNMPCredential) (*gosnmp.GoSNMP, error) {
+	version := strings.ToLower(strings.TrimSpace(cred.Version))
+	if version == "" {
+		version = "v2c"
+	}
+	switch version {
+	case "v2", "v2c", "2c":
+		return &gosnmp.GoSNMP{
+			Target:    ip,
+			Port:      port,
+			Community: cred.Community,
+			Version:   gosnmp.Version2c,
+			Timeout:   timeout,
+			Retries:   retries,
+		}, nil
+	case "v3":
+		authProto := parseAuthProto(cred.AuthProtocol)
+		privProto := parsePrivProto(cred.PrivProtocol)
+		params := &gosnmp.UsmSecurityParameters{
+			UserName:                 cred.Username,
+			AuthenticationProtocol:   authProto,
+			AuthenticationPassphrase: cred.AuthPassword,
+			PrivacyProtocol:          privProto,
+			PrivacyPassphrase:        cred.PrivPassword,
+		}
+		secLevel := gosnmp.NoAuthNoPriv
+		if authProto != gosnmp.NoAuth && privProto != gosnmp.NoPriv {
+			secLevel = gosnmp.AuthPriv
+		} else if authProto != gosnmp.NoAuth {
+			secLevel = gosnmp.AuthNoPriv
+		}
+
+		return &gosnmp.GoSNMP{
+			Target:             ip,
+			Port:               port,
+			Version:            gosnmp.Version3,
+			SecurityModel:      gosnmp.UserSecurityModel,
+			MsgFlags:           secLevel,
+			SecurityParameters: params,
+			Timeout:            timeout,
+			Retries:            retries,
+		}, nil
+	default:
+		return nil, ErrUnsupportedVersion
+	}
+}
+
+func parseAuthProto(v string) gosnmp.SnmpV3AuthProtocol {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "md5":
+		return gosnmp.MD5
+	case "sha", "sha1":
+		return gosnmp.SHA
+	case "sha224":
+		return gosnmp.SHA224
+	case "sha256":
+		return gosnmp.SHA256
+	case "sha384":
+		return gosnmp.SHA384
+	case "sha512":
+		return gosnmp.SHA512
+	default:
+		return gosnmp.NoAuth
+	}
+}
+
+func parsePrivProto(v string) gosnmp.SnmpV3PrivProtocol {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "des":
+		return gosnmp.DES
+	case "aes", "aes128":
+		return gosnmp.AES
+	case "aes192":
+		return gosnmp.AES192
+	case "aes256":
+		return gosnmp.AES256
+	default:
+		return gosnmp.NoPriv
+	}
+}
+
 func listTenants(ctx context.Context, master *sql.DB) ([]Tenant, error) {
 	rows, err := master.QueryContext(ctx, `SELECT id::text, db_name FROM tenants`)
 	if err != nil {
@@ -192,7 +293,31 @@ func listTenants(ctx context.Context, master *sql.DB) ([]Tenant, error) {
 }
 
 func listDevices(ctx context.Context, dbConn *sql.DB) ([]Device, error) {
-	rows, err := dbConn.QueryContext(ctx, `SELECT id::text, hostname, ip FROM devices WHERE ip <> ''`)
+	hasIPAddr, err := columnExists(ctx, dbConn, "devices", "ip_address")
+	if err != nil {
+		return nil, err
+	}
+	hasCred, err := columnExists(ctx, dbConn, "devices", "snmp_credential_id")
+	if err != nil {
+		return nil, err
+	}
+
+	q := "SELECT id::text, hostname, ip"
+	if hasIPAddr {
+		q = "SELECT id::text, hostname, COALESCE(NULLIF(ip_address,''), ip) AS ip"
+	}
+	if hasCred {
+		q += ", snmp_credential_id::text"
+	} else {
+		q += ", ''::text"
+	}
+	q += " FROM devices WHERE "
+	if hasIPAddr {
+		q += "COALESCE(NULLIF(ip_address,''), ip) <> ''"
+	} else {
+		q += "ip <> ''"
+	}
+	rows, err := dbConn.QueryContext(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -201,12 +326,60 @@ func listDevices(ctx context.Context, dbConn *sql.DB) ([]Device, error) {
 	out := make([]Device, 0)
 	for rows.Next() {
 		var d Device
-		if err := rows.Scan(&d.ID, &d.Hostname, &d.IP); err != nil {
+		if err := rows.Scan(&d.ID, &d.Hostname, &d.IP, &d.CredID); err != nil {
 			return nil, err
 		}
 		out = append(out, d)
 	}
 	return out, rows.Err()
+}
+
+func listCredentials(ctx context.Context, dbConn *sql.DB, tenantID string) ([]SNMPCredential, error) {
+	exists, err := tableExists(ctx, dbConn, "snmp_credentials")
+	if err != nil || !exists {
+		return []SNMPCredential{}, err
+	}
+	rows, err := dbConn.QueryContext(ctx, `
+SELECT id::text, version, community, username, auth_protocol, auth_password, priv_protocol, priv_password
+FROM snmp_credentials
+WHERE tenant_id = $1`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]SNMPCredential, 0)
+	for rows.Next() {
+		var c SNMPCredential
+		if err := rows.Scan(&c.ID, &c.Version, &c.Community, &c.Username, &c.AuthProtocol, &c.AuthPassword, &c.PrivProtocol, &c.PrivPassword); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+func tableExists(ctx context.Context, dbConn *sql.DB, table string) (bool, error) {
+	row := dbConn.QueryRowContext(ctx, `SELECT to_regclass($1)`, table)
+	var reg sql.NullString
+	if err := row.Scan(&reg); err != nil {
+		return false, err
+	}
+	return reg.Valid, nil
+}
+
+func columnExists(ctx context.Context, dbConn *sql.DB, table, col string) (bool, error) {
+	row := dbConn.QueryRowContext(ctx, `
+SELECT 1 FROM information_schema.columns
+WHERE table_schema='public' AND table_name=$1 AND column_name=$2
+LIMIT 1`, table, col)
+	var one int
+	if err := row.Scan(&one); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 func getOrCreateDevice(ctx context.Context, dbConn *sql.DB, hostname string) (Device, error) {

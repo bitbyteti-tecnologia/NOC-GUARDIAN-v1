@@ -32,7 +32,9 @@ type Tenant struct {
 
 func CreateTenantHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name string `json:"name"`
+		Name string          `json:"name"`
+		IPs  []string        `json:"ips,omitempty"`
+		SNMP *SNMPCredential `json:"snmp,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), 400)
@@ -89,6 +91,14 @@ func CreateTenantHandler(w http.ResponseWriter, r *http.Request) {
 		_, _ = MasterConn.Exec(context.Background(), fmt.Sprintf("DROP DATABASE IF EXISTS %s;", QuoteIdent(dbName)))
 		http.Error(w, "Erro migrações tenant: "+err.Error(), 500)
 		return
+	}
+
+	if len(req.IPs) > 0 || req.SNMP != nil {
+		if err := SeedTenantDiscovery(tid.String(), dbName, req.IPs, req.SNMP); err != nil {
+			http.Error(w, "Erro onboarding discovery: "+err.Error(), 500)
+			return
+		}
+		_ = TriggerDiscovery(tid.String())
 	}
 
 	resp := Tenant{ID: tid, Name: req.Name, DBName: dbName}
@@ -168,13 +178,19 @@ CREATE TABLE IF NOT EXISTS devices (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   hostname TEXT NOT NULL UNIQUE,
   ip TEXT NOT NULL DEFAULT '',
+  ip_address TEXT NOT NULL DEFAULT '',
   type TEXT NOT NULL DEFAULT 'server',
   os TEXT NOT NULL DEFAULT 'linux',
   vendor TEXT,
   model TEXT,
+  snmp_credential_id UUID,
   last_seen TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE devices
+  ADD COLUMN IF NOT EXISTS ip_address TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS snmp_credential_id UUID;
 
 CREATE TABLE IF NOT EXISTS device_relationships (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -192,6 +208,19 @@ CREATE INDEX IF NOT EXISTS idx_device_relationships_parent
 
 CREATE INDEX IF NOT EXISTS idx_device_relationships_child
   ON device_relationships (tenant_id, child_device_id);
+
+CREATE TABLE IF NOT EXISTS snmp_credentials (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  tenant_id UUID NOT NULL,
+  version TEXT NOT NULL DEFAULT 'v2c',
+  community TEXT,
+  username TEXT,
+  auth_protocol TEXT,
+  auth_password TEXT,
+  priv_protocol TEXT,
+  priv_password TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
 
 CREATE TABLE IF NOT EXISTS metrics (
   time TIMESTAMPTZ NOT NULL,

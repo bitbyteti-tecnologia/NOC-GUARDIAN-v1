@@ -29,6 +29,7 @@ services:
       - PGUSER=guardian
       - PGPORT=5432
       - PGHOST=db
+      - DISCOVERY_URL=http://discovery:8085
     build:
       context: ../central
     depends_on:
@@ -83,6 +84,7 @@ services:
       - DISCOVERY_INTERVAL_SEC=600
       - SNMP_COMMUNITY=public
       - SNMP_VERSION=2c
+      - DISCOVERY_LISTEN=:8085
 
   nginx:
     image: nginx:1.25-alpine
