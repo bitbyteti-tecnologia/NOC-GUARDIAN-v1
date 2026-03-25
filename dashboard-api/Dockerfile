@@ -9,6 +9,8 @@ COPY go.sum* ./
 
 # Copia TODOS os arquivos Go (inclui host_inventory_latest.go)
 COPY *.go ./
+# Copia pacotes internos
+COPY internal ./internal
 
 # Gera/ajusta dependências (gera go.sum se faltava)
 RUN /usr/local/go/bin/go mod tidy
