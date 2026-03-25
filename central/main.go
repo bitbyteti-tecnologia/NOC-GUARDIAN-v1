@@ -51,8 +51,8 @@ func main() {
 	r.Handle("/api/v1/tenants", RequireAuth(RequireRole("superadmin", "support")(http.HandlerFunc(CreateTenantHandler)))).Methods("POST")
 	r.Handle("/api/v1/tenants", RequireAuth(RequireRole("superadmin", "support")(http.HandlerFunc(ListTenantsHandler)))).Methods("GET")
 	r.Handle("/api/v1/tenants/{tenantID}", RequireAuth(RequireRole("superadmin", "support")(http.HandlerFunc(GetTenantInfoHandler)))).Methods("GET")
-	r.Handle("/api/v1/tenants/{tenantID}/discovery", RequireAuth(RequireRole("superadmin", "support")(http.HandlerFunc(TenantDiscoveryHandler)))).Methods("POST")
-	r.Handle("/api/v1/discovery/run", RequireAuth(RequireRole("superadmin", "support")(http.HandlerFunc(DiscoveryRunHandler)))).Methods("POST")
+	r.Handle("/api/v1/tenants/{tenantID}/discovery", RequireAuth(RequireRole("superadmin", "support", "admin")(http.HandlerFunc(TenantDiscoveryHandler)))).Methods("POST")
+	r.Handle("/api/v1/discovery/run", RequireAuth(RequireRole("superadmin", "support", "admin")(http.HandlerFunc(DiscoveryRunHandler)))).Methods("POST")
 
 	// Users (globais e por tenant)
 	r.Handle("/api/v1/users", RequireAuth(RequireRole("superadmin", "support")(http.HandlerFunc(CreateGlobalUserHandler)))).Methods("POST")

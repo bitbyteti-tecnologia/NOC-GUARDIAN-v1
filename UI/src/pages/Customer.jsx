@@ -68,6 +68,7 @@ export default function Customer() {
   const [incidentDetails, setIncidentDetails] = useState(null);
   const [scanIPs, setScanIPs] = useState("");
   const [scanCommunity, setScanCommunity] = useState("");
+  const [useSNMPScan, setUseSNMPScan] = useState(false);
   const [scanLoading, setScanLoading] = useState(false);
   const [scanMsg, setScanMsg] = useState("");
   const [topology, setTopology] = useState(null);
@@ -177,7 +178,7 @@ export default function Customer() {
       .filter(Boolean);
     const payload = {
       ips,
-      snmp: scanCommunity
+      snmp: useSNMPScan && scanCommunity
         ? { version: "v2c", community: scanCommunity }
         : null,
     };
@@ -187,7 +188,7 @@ export default function Customer() {
       loadTopology();
       loadAll();
     } catch {
-      setScanMsg("Falha ao iniciar discovery. Verifique permissões e credenciais.");
+      setScanMsg("Falha ao iniciar discovery. Verifique logs e configuração.");
     } finally {
       setScanLoading(false);
     }
@@ -390,15 +391,26 @@ export default function Customer() {
             />
           </div>
           <div>
-            <label className="text-xs text-slate-400">SNMP Community (v2c)</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-slate-400">SNMP Community (v2c)</label>
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={useSNMPScan}
+                  onChange={(e) => setUseSNMPScan(e.target.checked)}
+                />
+                Usar SNMP
+              </label>
+            </div>
             <input
               className="w-full p-2 rounded text-slate-900"
               value={scanCommunity}
               onChange={(e) => setScanCommunity(e.target.value)}
               placeholder="public"
+              disabled={!useSNMPScan}
             />
             <div className="text-xs text-slate-500 mt-2">
-              Se vazio, usa community padrão do servidor.
+              Sem SNMP, o discovery faz apenas seed de devices.
             </div>
           </div>
         </div>

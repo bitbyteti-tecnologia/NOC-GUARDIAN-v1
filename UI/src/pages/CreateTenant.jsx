@@ -17,6 +17,7 @@ export default function CreateTenant() {
   const [name, setName] = useState("");
   const [ipsRaw, setIpsRaw] = useState("");
   const [snmpVersion, setSnmpVersion] = useState("v2c");
+  const [useSNMP, setUseSNMP] = useState(false);
   const [snmpCommunity, setSnmpCommunity] = useState("");
   const [snmpUser, setSnmpUser] = useState("");
   const [snmpAuthProto, setSnmpAuthProto] = useState("sha");
@@ -37,6 +38,7 @@ export default function CreateTenant() {
   if (!can) return <div className="text-slate-400">Sem permissão.</div>;
 
   function buildSNMP() {
+    if (!useSNMP) return null;
     if (snmpVersion === "v3") {
       if (!snmpUser) return null;
       return {
@@ -111,8 +113,19 @@ export default function CreateTenant() {
         </div>
 
         <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-          <div className="text-sm font-semibold text-slate-100">Credencial SNMP</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-slate-100">Credencial SNMP (opcional)</div>
+            <label className="flex items-center gap-2 text-xs text-slate-300">
+              <input
+                type="checkbox"
+                checked={useSNMP}
+                onChange={(e) => setUseSNMP(e.target.checked)}
+              />
+              Informar credenciais
+            </label>
+          </div>
+          {useSNMP && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
             <div>
               <label className="text-xs text-slate-400">Versão</label>
               <select
@@ -193,6 +206,12 @@ export default function CreateTenant() {
               </>
             )}
           </div>
+          )}
+          {!useSNMP && (
+            <div className="text-xs text-slate-500 mt-2">
+              Se não informar credenciais, o discovery pode rodar sem SNMP (seed de devices).
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col md:flex-row gap-2">
