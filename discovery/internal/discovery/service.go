@@ -63,7 +63,7 @@ func (s *Service) processTenant(ctx context.Context, t Tenant) error {
 	}
 	defer tenantDB.Close()
 
-	if err := ensureRelationshipTable(ctx, tenantDB); err != nil {
+	if err := ensureRelationshipTable(ctx, tenantDB, t.ID); err != nil {
 		return err
 	}
 
@@ -73,8 +73,18 @@ func (s *Service) processTenant(ctx context.Context, t Tenant) error {
 	}
 
 	if len(devices) == 0 {
-		log.Printf("%stenant=%s devices=0", s.LogPrefix, t.ID)
-		return nil
+		seeded, err := seedDevicesFromMetrics(ctx, tenantDB)
+		if err != nil {
+			return err
+		}
+		log.Printf("%stenant=%s devices=0 seeded=%d", s.LogPrefix, t.ID, seeded)
+		devices, err = listDevices(ctx, tenantDB)
+		if err != nil {
+			return err
+		}
+		if len(devices) == 0 {
+			return nil
+		}
 	}
 
 	mapByHost := make(map[string]Device)
@@ -216,25 +226,37 @@ RETURNING id::text, hostname, ip`, hostname)
 	return d, nil
 }
 
-func ensureRelationshipTable(ctx context.Context, dbConn *sql.DB) error {
+func ensureRelationshipTable(ctx context.Context, dbConn *sql.DB, tenantID string) error {
 	_, err := dbConn.ExecContext(ctx, `
 CREATE TABLE IF NOT EXISTS device_relationships (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  tenant_id UUID NOT NULL,
+  tenant_id UUID,
   parent_device_id UUID NOT NULL,
   child_device_id UUID NOT NULL,
   relation_type TEXT NOT NULL DEFAULT 'uplink',
   discovered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (tenant_id, parent_device_id, child_device_id)
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE device_relationships
+  ADD COLUMN IF NOT EXISTS tenant_id UUID,
+  ADD COLUMN IF NOT EXISTS relation_type TEXT NOT NULL DEFAULT 'uplink',
+  ADD COLUMN IF NOT EXISTS discovered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+UPDATE device_relationships
+SET tenant_id = $1
+WHERE tenant_id IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS device_relationships_unique
+  ON device_relationships (tenant_id, parent_device_id, child_device_id);
 
 CREATE INDEX IF NOT EXISTS idx_device_relationships_parent
   ON device_relationships (tenant_id, parent_device_id);
 
 CREATE INDEX IF NOT EXISTS idx_device_relationships_child
   ON device_relationships (tenant_id, child_device_id);
-`)
+`, tenantID)
 	return err
 }
 
@@ -244,4 +266,28 @@ INSERT INTO device_relationships (tenant_id, parent_device_id, child_device_id, 
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (tenant_id, parent_device_id, child_device_id) DO NOTHING`, tenantID, parentID, childID, relation)
 	return err
+}
+
+func seedDevicesFromMetrics(ctx context.Context, dbConn *sql.DB) (int, error) {
+	// cria devices a partir de labels das métricas (quando tabela devices está vazia)
+	res, err := dbConn.ExecContext(ctx, `
+WITH src AS (
+  SELECT DISTINCT
+    NULLIF(labels->>'hostname','') AS hostname,
+    NULLIF(COALESCE(labels->>'ip', labels->>'host_ip', labels->>'ip_address'), '') AS ip,
+    NULLIF(labels->>'os','') AS os
+  FROM metrics
+  WHERE labels ? 'hostname'
+)
+INSERT INTO devices (hostname, ip, type, os)
+SELECT hostname, COALESCE(ip,''), 'server', COALESCE(os, 'linux')
+FROM src
+WHERE hostname IS NOT NULL
+ON CONFLICT (hostname) DO NOTHING;
+`)
+	if err != nil {
+		return 0, err
+	}
+	rows, _ := res.RowsAffected()
+	return int(rows), nil
 }
