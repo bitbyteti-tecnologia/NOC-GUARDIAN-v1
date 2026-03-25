@@ -38,6 +38,9 @@ type Config struct {
 	MemoryThreshold     float64
 	OfflineThresholdSec int
 	OfflineCheckSec     int
+
+	CorrelationPollSec   int
+	CorrelationWindowSec int
 }
 
 func Load() Config {
@@ -73,6 +76,9 @@ func Load() Config {
 		MemoryThreshold:     envFloat("MEMORY_THRESHOLD", 85),
 		OfflineThresholdSec: envInt("OFFLINE_THRESHOLD_SEC", 120),
 		OfflineCheckSec:     envInt("OFFLINE_CHECK_SEC", 30),
+
+		CorrelationPollSec:   envInt("CORRELATION_POLL_SEC", 10),
+		CorrelationWindowSec: envInt("CORRELATION_WINDOW_SEC", 60),
 	}
 }
 

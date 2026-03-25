@@ -15,6 +15,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
+
+	"dashboard-api/internal/dashboard"
 )
 
 type Config struct {
@@ -25,6 +27,11 @@ type Config struct {
 	MasterPass      string
 	MasterDB        string
 	DashboardSecret string
+	OnlineWindowSec int
+	MaxSeriesPoints int
+	CacheTTLSeconds int
+	CacheRedisURL   string
+	EnforceTenant   bool
 }
 
 func getenv(k, def string) string {
@@ -33,6 +40,14 @@ func getenv(k, def string) string {
 		return def
 	}
 	return v
+}
+
+func atoi(raw string, def int) int {
+	n, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || n <= 0 {
+		return def
+	}
+	return n
 }
 
 func mustConfig() Config {
@@ -44,6 +59,11 @@ func mustConfig() Config {
 		MasterPass:      getenv("MASTER_DB_PASS", ""),
 		MasterDB:        getenv("MASTER_DB_NAME", "guardian_master"),
 		DashboardSecret: getenv("DASHBOARD_SECRET", ""),
+		OnlineWindowSec: atoi(getenv("ONLINE_WINDOW_SEC", "120"), 120),
+		MaxSeriesPoints: atoi(getenv("MAX_SERIES_POINTS", "1000"), 1000),
+		CacheTTLSeconds: atoi(getenv("CACHE_TTL_SEC", "15"), 15),
+		CacheRedisURL:   getenv("CACHE_REDIS_URL", ""),
+		EnforceTenant:   getenv("ENFORCE_TENANT_HEADER", "false") == "true",
 	}
 	if cfg.DashboardSecret == "" {
 		log.Println("[WARN] DASHBOARD_SECRET vazio; endpoints ficarão sem proteção por header.")
@@ -95,6 +115,12 @@ func main() {
 					return
 				}
 			}
+			if cfg.EnforceTenant {
+				if tid := req.Header.Get("X-Tenant-Id"); tid != "" {
+					ctx := context.WithValue(req.Context(), "tenant_id", tid)
+					req = req.WithContext(ctx)
+				}
+			}
 			next.ServeHTTP(w, req)
 		})
 	})
@@ -131,6 +157,29 @@ func main() {
 	})
 
 	r.Get("/api/v1/tenants/{tenantId}/dashboard/host/{hostname}/inventory/latest", HostInventoryLatestHandler)
+
+	var cache dashboard.Cache
+	if cfg.CacheRedisURL != "" {
+		cache = dashboard.NewRedisCache(cfg.CacheRedisURL)
+	}
+
+	dashSvc := &dashboard.Service{
+		OpenTenant: func(ctx context.Context, tenantID string) (*sql.DB, string, error) {
+			if cfg.EnforceTenant {
+				if tid := ctx.Value("tenant_id"); tid != nil && tid != tenantID {
+					return nil, "", fmt.Errorf("tenant mismatch")
+				}
+			}
+			return openTenant(ctx, cfg, tenantID)
+		},
+		OnlineWindow: time.Duration(cfg.OnlineWindowSec) * time.Second,
+		LogPrefix:    "[dashboard] ",
+		Cache:        cache,
+		CacheTTL:     time.Duration(cfg.CacheTTLSeconds) * time.Second,
+		MaxPoints:    cfg.MaxSeriesPoints,
+	}
+	dashboard.RegisterRoutes(r, dashSvc, writeJSON)
+	r.Get("/api/v1/dashboard/series", dashboard.SeriesHandler(dashSvc, writeJSON))
 
 	log.Printf("dashboard-api listening on %s\n", cfg.ListenAddr)
 	if err := http.ListenAndServe(cfg.ListenAddr, r); err != nil {

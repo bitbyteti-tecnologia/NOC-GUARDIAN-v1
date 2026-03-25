@@ -162,3 +162,34 @@ func (r *Repository) List(ctx context.Context, filter ListFilter) ([]Event, erro
 	}
 	return events, rows.Err()
 }
+
+func (r *Repository) ListActiveUpdatedSince(ctx context.Context, since time.Time) ([]Event, error) {
+	rows, err := r.pool.Query(
+		ctx,
+		`SELECT id, event_id, tenant_id, device_id, event_type, severity, message, metadata, first_seen, last_seen, status, created_at, updated_at
+         FROM events
+         WHERE status = 'active' AND updated_at >= $1
+         ORDER BY updated_at ASC`,
+		since,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	events := make([]Event, 0)
+	for rows.Next() {
+		var e Event
+		var metadataJSON []byte
+		if err := rows.Scan(&e.ID, &e.EventID, &e.TenantID, &e.DeviceID, &e.EventType, &e.Severity, &e.Message, &metadataJSON, &e.FirstSeen, &e.LastSeen, &e.Status, &e.CreatedAt, &e.UpdatedAt); err != nil {
+			return nil, err
+		}
+		if len(metadataJSON) > 0 {
+			if err := json.Unmarshal(metadataJSON, &e.Metadata); err != nil {
+				return nil, err
+			}
+		}
+		events = append(events, e)
+	}
+	return events, rows.Err()
+}

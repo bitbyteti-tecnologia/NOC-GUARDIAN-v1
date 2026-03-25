@@ -10,6 +10,7 @@ import (
 	"github.com/bitbyteti/noc-guardian/async/internal/alerts"
 	"github.com/bitbyteti/noc-guardian/async/internal/db"
 	"github.com/bitbyteti/noc-guardian/async/internal/events"
+	"github.com/bitbyteti/noc-guardian/async/internal/incidents"
 )
 
 type Server struct {
@@ -17,6 +18,7 @@ type Server struct {
 	log        *slog.Logger
 	eventsRepo *events.Repository
 	alertsRepo *alerts.Repository
+	incRepo    *incidents.Repository
 }
 
 func NewServer(store *db.Store, log *slog.Logger) *Server {
@@ -25,6 +27,7 @@ func NewServer(store *db.Store, log *slog.Logger) *Server {
 		log:        log,
 		eventsRepo: events.NewRepository(store.Pool()),
 		alertsRepo: alerts.NewRepository(store.Pool()),
+		incRepo:    incidents.NewRepository(store.Pool()),
 	}
 }
 
@@ -34,6 +37,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/events", s.handleEvents)
 	mux.HandleFunc("/alerts", s.handleAlerts)
 	mux.HandleFunc("/alerts/", s.handleAlertAck)
+	mux.HandleFunc("/incidents", s.handleIncidents)
+	mux.HandleFunc("/incidents/", s.handleIncidentDetail)
 	return mux
 }
 
@@ -146,6 +151,53 @@ func (s *Server) handleAlertAck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handleIncidents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	tenantID := r.URL.Query().Get("tenant_id")
+	if tenantID == "" {
+		http.Error(w, "tenant_id is required", http.StatusBadRequest)
+		return
+	}
+
+	status := r.URL.Query().Get("status")
+	list, err := s.incRepo.List(r.Context(), tenantID, status)
+	if err != nil {
+		s.log.Error("query incidents failed", "error", err)
+		http.Error(w, "failed to query incidents", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, list, s.log)
+}
+
+func (s *Server) handleIncidentDetail(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	path := strings.TrimPrefix(r.URL.Path, "/incidents/")
+	if path == "" {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	inc, eventsList, err := s.incRepo.GetDetail(r.Context(), path)
+	if err != nil {
+		s.log.Error("incident detail failed", "error", err)
+		http.Error(w, "failed to get incident", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, map[string]any{
+		"incident": inc,
+		"events":   eventsList,
+	}, s.log)
 }
 
 func writeJSON(w http.ResponseWriter, payload any, log *slog.Logger) {
