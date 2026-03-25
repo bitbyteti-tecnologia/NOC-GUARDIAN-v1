@@ -100,12 +100,21 @@ func (s *Service) processTenant(ctx context.Context, t Tenant) error {
 			continue
 		}
 		for _, n := range neighbors {
+			if strings.TrimSpace(n.SysName) == "" {
+				continue
+			}
 			target, ok := mapByHost[strings.ToLower(n.SysName)]
 			if !ok {
 				target = mapByIP[n.SysName]
 			}
 			if target.ID == "" {
-				continue
+				created, err := getOrCreateDevice(ctx, tenantDB, n.SysName)
+				if err != nil {
+					log.Printf("%stenant=%s neighbor=%s create device error: %v", s.LogPrefix, t.ID, n.SysName, err)
+					continue
+				}
+				target = created
+				mapByHost[strings.ToLower(created.Hostname)] = created
 			}
 			if d.ID == target.ID {
 				continue
@@ -188,6 +197,23 @@ func listDevices(ctx context.Context, dbConn *sql.DB) ([]Device, error) {
 		out = append(out, d)
 	}
 	return out, rows.Err()
+}
+
+func getOrCreateDevice(ctx context.Context, dbConn *sql.DB, hostname string) (Device, error) {
+	hostname = strings.TrimSpace(hostname)
+	if hostname == "" {
+		return Device{}, errors.New("hostname vazio")
+	}
+	row := dbConn.QueryRowContext(ctx, `
+INSERT INTO devices (hostname, ip, type, os)
+VALUES ($1, '', 'network', 'unknown')
+ON CONFLICT (hostname) DO UPDATE SET hostname = EXCLUDED.hostname
+RETURNING id::text, hostname, ip`, hostname)
+	var d Device
+	if err := row.Scan(&d.ID, &d.Hostname, &d.IP); err != nil {
+		return Device{}, err
+	}
+	return d, nil
 }
 
 func ensureRelationshipTable(ctx context.Context, dbConn *sql.DB) error {

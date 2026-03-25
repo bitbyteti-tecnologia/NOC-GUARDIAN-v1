@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 )
 
 type Repository struct {
@@ -47,15 +48,15 @@ FROM device_relationships`)
 	return out, rows.Err()
 }
 
-func (r *Repository) ListDevicesFromMetrics(ctx context.Context) ([]Node, error) {
-	exists, err := r.tableExists(ctx, "metrics")
+func (r *Repository) ListDevices(ctx context.Context) ([]Node, error) {
+	exists, err := r.tableExists(ctx, "devices")
 	if err != nil || !exists {
 		return []Node{}, err
 	}
 	rows, err := r.db.QueryContext(ctx, `
-SELECT device_id::text AS device_id, max(labels->>'hostname') AS hostname
-FROM metrics
-GROUP BY device_id`)
+SELECT id::text, hostname, last_seen
+FROM devices
+ORDER BY hostname`)
 	if err != nil {
 		return nil, err
 	}
@@ -64,25 +65,70 @@ GROUP BY device_id`)
 	out := make([]Node, 0)
 	for rows.Next() {
 		var id, name sql.NullString
-		if err := rows.Scan(&id, &name); err != nil {
+		var lastSeen sql.NullTime
+		if err := rows.Scan(&id, &name, &lastSeen); err != nil {
 			return nil, err
 		}
 		label := id.String
 		if name.Valid && name.String != "" {
 			label = name.String
 		}
-		out = append(out, Node{ID: id.String, Label: label, Status: "unknown"})
+		n := Node{ID: id.String, Label: label, Status: "unknown"}
+		if lastSeen.Valid {
+			t := lastSeen.Time
+			n.LastSeen = &t
+		}
+		out = append(out, n)
 	}
 	return out, rows.Err()
 }
 
-func (r *Repository) ListIncidentDevices(ctx context.Context) (map[string]string, error) {
-	exists, err := r.tableExists(ctx, "incident_events")
+type MetricSnapshot struct {
+	DeviceID string
+	Metric   string
+	Value    float64
+	Time     time.Time
+}
+
+func (r *Repository) ListLatestMetrics(ctx context.Context, metrics []string) ([]MetricSnapshot, error) {
+	exists, err := r.tableExists(ctx, "metrics")
 	if err != nil || !exists {
-		return map[string]string{}, err
+		return []MetricSnapshot{}, err
 	}
 	rows, err := r.db.QueryContext(ctx, `
-SELECT e.device_id::text, max(e.severity)
+SELECT DISTINCT ON (device_id, metric)
+  device_id::text, metric, value, time
+FROM metrics
+WHERE metric = ANY($1)
+ORDER BY device_id, metric, time DESC`, metrics)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]MetricSnapshot, 0)
+	for rows.Next() {
+		var m MetricSnapshot
+		if err := rows.Scan(&m.DeviceID, &m.Metric, &m.Value, &m.Time); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+type IncidentAgg struct {
+	Severity string
+	Count    int
+}
+
+func (r *Repository) ListIncidentDevices(ctx context.Context) (map[string]IncidentAgg, error) {
+	exists, err := r.tableExists(ctx, "incident_events")
+	if err != nil || !exists {
+		return map[string]IncidentAgg{}, err
+	}
+	rows, err := r.db.QueryContext(ctx, `
+SELECT e.device_id::text, max(e.severity), count(*)
 FROM incident_events ie
 JOIN events e ON e.event_id = ie.event_id
 WHERE e.status = 'active'
@@ -92,13 +138,14 @@ GROUP BY e.device_id`)
 	}
 	defer rows.Close()
 
-	out := make(map[string]string)
+	out := make(map[string]IncidentAgg)
 	for rows.Next() {
 		var deviceID, sev string
-		if err := rows.Scan(&deviceID, &sev); err != nil {
+		var cnt int
+		if err := rows.Scan(&deviceID, &sev, &cnt); err != nil {
 			return nil, err
 		}
-		out[deviceID] = sev
+		out[deviceID] = IncidentAgg{Severity: sev, Count: cnt}
 	}
 	return out, rows.Err()
 }

@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import ReactFlow, { Background, Controls, MiniMap } from "reactflow";
+import dagre from "@dagrejs/dagre";
 import "reactflow/dist/style.css";
 
 const statusStyles = {
@@ -10,17 +11,27 @@ const statusStyles = {
   unknown: { border: "#94a3b8", bg: "rgba(148, 163, 184, 0.12)", text: "#e2e8f0" },
 };
 
-function layoutNodes(nodes) {
+function layoutNodes(nodes, edges) {
   if (!nodes.length) return [];
-  const cols = Math.ceil(Math.sqrt(nodes.length));
-  const gapX = 230;
-  const gapY = 140;
-  return nodes.map((n, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
+  const g = new dagre.graphlib.Graph();
+  g.setDefaultEdgeLabel(() => ({}));
+  g.setGraph({ rankdir: "LR", nodesep: 50, ranksep: 100, marginx: 20, marginy: 20 });
+
+  nodes.forEach((n) => {
+    g.setNode(n.id, { width: 180, height: 70 });
+  });
+  edges.forEach((e) => {
+    g.setEdge(e.source, e.target);
+  });
+
+  dagre.layout(g);
+
+  return nodes.map((n) => {
+    const pos = g.node(n.id);
+    if (!pos) return n;
     return {
       ...n,
-      position: { x: col * gapX, y: row * gapY },
+      position: { x: pos.x - 90, y: pos.y - 35 },
     };
   });
 }
@@ -30,34 +41,81 @@ function mapStatus(status) {
   return statusStyles[key] || statusStyles.unknown;
 }
 
-export default function TopologyCard({ data, loading, error }) {
-  const { nodes, edges, roots } = useMemo(() => {
-    const rawNodes = Array.isArray(data?.nodes) ? data.nodes : [];
-    const rawEdges = Array.isArray(data?.edges) ? data.edges : [];
-    const roots = rawNodes.filter((n) => n.root);
+function fmtPct(val) {
+  if (typeof val !== "number" || Number.isNaN(val)) return "—";
+  return `${val.toFixed(1)}%`;
+}
 
-    const flowNodes = rawNodes.map((n) => {
-      const style = mapStatus(n.status);
-      const isRoot = Boolean(n.root);
-      return {
-        id: n.id,
-        data: {
-          label: n.label || n.id,
-          status: n.status || "unknown",
-          root: isRoot,
-        },
-        style: {
+function fmtDate(val) {
+  if (!val) return "—";
+  try {
+    return new Intl.DateTimeFormat("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone: "America/Sao_Paulo",
+    }).format(new Date(val));
+  } catch {
+    return String(val);
+  }
+}
+
+function DeviceNode({ data }) {
+  const style = mapStatus(data?.status);
+  const isRoot = Boolean(data?.root);
+  const incidents = data?.incident_count ?? 0;
+
+  return (
+    <div className="group relative">
+      <div
+        style={{
           border: `2px solid ${isRoot ? "#f97316" : style.border}`,
           background: isRoot ? "rgba(249, 115, 22, 0.18)" : style.bg,
           color: style.text,
           borderRadius: 14,
           padding: 12,
           fontSize: 12,
-          minWidth: 150,
+          minWidth: 160,
           boxShadow: isRoot ? "0 0 0 2px rgba(249, 115, 22, 0.15)" : "0 0 0 1px rgba(148,163,184,0.12)",
-        },
-      };
-    });
+        }}
+      >
+        <div className="text-sm font-semibold">{data?.label || data?.id}</div>
+        <div className="text-[11px] text-slate-300 mt-1">
+          {data?.status || "unknown"} • incidentes: {incidents}
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute left-1/2 top-full z-10 hidden w-56 -translate-x-1/2 translate-y-2 rounded-xl border border-slate-700 bg-slate-950/95 p-3 text-[11px] text-slate-200 shadow-xl group-hover:block">
+        <div className="font-semibold text-slate-100 mb-1">Detalhes</div>
+        <div className="space-y-1">
+          <div>CPU: <span className="text-slate-100">{fmtPct(data?.metrics?.cpu_percent)}</span></div>
+          <div>Memória: <span className="text-slate-100">{fmtPct(data?.metrics?.mem_used_pct)}</span></div>
+          <div>Disco: <span className="text-slate-100">{fmtPct(data?.metrics?.disk_used_pct)}</span></div>
+          <div>Último: <span className="text-slate-100">{fmtDate(data?.last_seen)}</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function TopologyCard({ data, loading, error }) {
+  const { nodes, edges, roots } = useMemo(() => {
+    const rawNodes = Array.isArray(data?.nodes) ? data.nodes : [];
+    const rawEdges = Array.isArray(data?.edges) ? data.edges : [];
+    const roots = rawNodes.filter((n) => n.root);
+
+    const flowNodes = rawNodes.map((n) => ({
+      id: n.id,
+      type: "device",
+      data: {
+        id: n.id,
+        label: n.label || n.id,
+        status: n.status || "unknown",
+        root: Boolean(n.root),
+        incident_count: n.incident_count ?? 0,
+        metrics: n.metrics || {},
+        last_seen: n.last_seen,
+      },
+    }));
 
     const flowEdges = rawEdges.map((e, i) => ({
       id: `${e.source}-${e.target}-${i}`,
@@ -70,7 +128,7 @@ export default function TopologyCard({ data, loading, error }) {
     }));
 
     return {
-      nodes: layoutNodes(flowNodes),
+      nodes: layoutNodes(flowNodes, flowEdges),
       edges: flowEdges,
       roots,
     };
@@ -120,6 +178,7 @@ export default function TopologyCard({ data, loading, error }) {
         <ReactFlow
           nodes={nodes}
           edges={edges}
+          nodeTypes={{ device: DeviceNode }}
           fitView
           fitViewOptions={{ padding: 0.2 }}
           nodesDraggable
