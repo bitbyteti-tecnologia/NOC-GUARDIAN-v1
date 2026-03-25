@@ -27,15 +27,14 @@ export default function CreateTenant() {
   const [created, setCreated] = useState(null); // {id, name, db_name}
   const [creating, setCreating] = useState(false);
 
-  const can = me && (me.role === "superadmin" || me.role === "support");
-  if (!can) return <div className="text-slate-400">Sem permissão.</div>;
-
   const ips = useMemo(() => {
     return String(ipsRaw || "")
       .split(/[\n,;\s]+/g)
       .map((v) => v.trim())
       .filter(Boolean);
   }, [ipsRaw]);
+  const can = me && (me.role === "superadmin" || me.role === "support");
+  if (!can) return <div className="text-slate-400">Sem permissão.</div>;
 
   function buildSNMP() {
     if (snmpVersion === "v3") {
