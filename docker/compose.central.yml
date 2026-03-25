@@ -30,6 +30,7 @@ services:
       - PGPORT=5432
       - PGHOST=db
       - DISCOVERY_URL=http://discovery:8085
+      - SNMP_CRED_KEY=change-me
     build:
       context: ../central
     depends_on:
@@ -85,6 +86,7 @@ services:
       - SNMP_COMMUNITY=public
       - SNMP_VERSION=2c
       - DISCOVERY_LISTEN=:8085
+      - SNMP_CRED_KEY=change-me
 
   nginx:
     image: nginx:1.25-alpine

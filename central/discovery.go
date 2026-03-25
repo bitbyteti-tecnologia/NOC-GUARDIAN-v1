@@ -81,11 +81,23 @@ ALTER TABLE devices
 
 	var credID *string
 	if snmp != nil {
+		key := getenv("SNMP_CRED_KEY", "")
+		if strings.TrimSpace(key) == "" {
+			return errors.New("SNMP_CRED_KEY não configurada")
+		}
 		var id string
 		err = conn.QueryRow(context.Background(), `
 INSERT INTO snmp_credentials (tenant_id, version, community, username, auth_protocol, auth_password, priv_protocol, priv_password)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id::text`, tenantID, safe(snmp.Version, "v2c"), snmp.Community, snmp.Username, snmp.AuthProtocol, snmp.AuthPassword, snmp.PrivProtocol, snmp.PrivPassword).Scan(&id)
+VALUES (
+  $1, $2,
+  CASE WHEN $3 = '' THEN NULL ELSE encode(pgp_sym_encrypt($3, $9), 'base64') END,
+  $4,
+  $5,
+  CASE WHEN $6 = '' THEN NULL ELSE encode(pgp_sym_encrypt($6, $9), 'base64') END,
+  $7,
+  CASE WHEN $8 = '' THEN NULL ELSE encode(pgp_sym_encrypt($8, $9), 'base64') END
+)
+RETURNING id::text`, tenantID, safe(snmp.Version, "v2c"), snmp.Community, snmp.Username, snmp.AuthProtocol, snmp.AuthPassword, snmp.PrivProtocol, snmp.PrivPassword, key).Scan(&id)
 		if err != nil {
 			return err
 		}

@@ -34,6 +34,7 @@ func main() {
 		SNMPPort:      cfg.SNMPPort,
 		SNMPTimeout:   cfg.SNMPTimeout,
 		SNMPRetries:   cfg.SNMPRetries,
+		SNMPCredKey:   cfg.SNMPCredKey,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

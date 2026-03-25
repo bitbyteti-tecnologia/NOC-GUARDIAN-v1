@@ -28,6 +28,7 @@ type Service struct {
 	SNMPPort      uint16
 	SNMPTimeout   time.Duration
 	SNMPRetries   int
+	SNMPCredKey   string
 }
 
 func (s *Service) RunOnce(ctx context.Context) {
@@ -87,7 +88,7 @@ func (s *Service) processTenant(ctx context.Context, t Tenant) error {
 		return err
 	}
 
-	creds, err := listCredentials(ctx, tenantDB, t.ID)
+	creds, err := listCredentials(ctx, tenantDB, t.ID, s.SNMPCredKey)
 	if err != nil {
 		return err
 	}
@@ -334,15 +335,29 @@ func listDevices(ctx context.Context, dbConn *sql.DB) ([]Device, error) {
 	return out, rows.Err()
 }
 
-func listCredentials(ctx context.Context, dbConn *sql.DB, tenantID string) ([]SNMPCredential, error) {
+func listCredentials(ctx context.Context, dbConn *sql.DB, tenantID string, key string) ([]SNMPCredential, error) {
 	exists, err := tableExists(ctx, dbConn, "snmp_credentials")
 	if err != nil || !exists {
 		return []SNMPCredential{}, err
 	}
-	rows, err := dbConn.QueryContext(ctx, `
+	query := `
 SELECT id::text, version, community, username, auth_protocol, auth_password, priv_protocol, priv_password
 FROM snmp_credentials
-WHERE tenant_id = $1`, tenantID)
+WHERE tenant_id = $1`
+	args := []any{tenantID}
+	if strings.TrimSpace(key) != "" {
+		query = `
+SELECT id::text, version,
+  pgp_sym_decrypt(decode(community,'base64'), $2) AS community,
+  username, auth_protocol,
+  pgp_sym_decrypt(decode(auth_password,'base64'), $2) AS auth_password,
+  priv_protocol,
+  pgp_sym_decrypt(decode(priv_password,'base64'), $2) AS priv_password
+FROM snmp_credentials
+WHERE tenant_id = $1`
+		args = append(args, key)
+	}
+	rows, err := dbConn.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

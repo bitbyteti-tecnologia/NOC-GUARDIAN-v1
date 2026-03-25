@@ -21,6 +21,7 @@ type Config struct {
 	SNMPPort      uint16
 	SNMPTimeout   time.Duration
 	SNMPRetries   int
+	SNMPCredKey   string
 }
 
 func getenv(k, def string) string {
@@ -57,5 +58,6 @@ func MustLoad() Config {
 		SNMPPort:      uint16(port),
 		SNMPTimeout:   time.Duration(timeoutMs) * time.Millisecond,
 		SNMPRetries:   retries,
+		SNMPCredKey:   getenv("SNMP_CRED_KEY", ""),
 	}
 }
