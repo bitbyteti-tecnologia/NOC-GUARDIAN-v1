@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"sort"
 	"time"
@@ -55,12 +56,17 @@ func (s *Service) Build(ctx context.Context, tenantID string) (IntelligenceRespo
 		})
 	}
 
+	trend := computeTrend(ctx, repo, tenantID)
+	summary := buildSummary(score, status, trend, top, insights)
+
 	log.Printf("%sintelligence tenant=%s score=%d incidents=%d took=%s",
 		s.LogPrefix, tenantID, score, len(incidents), time.Since(start))
 
 	return IntelligenceResponse{
 		HealthScore:     score,
 		Status:          status,
+		Trend:           trend,
+		Summary:         summary,
 		TopIncidents:    top,
 		Insights:        insights,
 		Recommendations: recommendations,
@@ -69,6 +75,7 @@ func (s *Service) Build(ctx context.Context, tenantID string) (IntelligenceRespo
 
 func computeHealthScore(incidents []Incident) int {
 	score := 100
+	penaltyByCategory := map[string]int{}
 	for _, inc := range incidents {
 		penalty := SeverityWeight(inc.Severity)
 		impact := inc.ImpactCount
@@ -89,7 +96,16 @@ func computeHealthScore(incidents []Incident) int {
 		case duration > 30*time.Minute:
 			penalty -= 5
 		}
-		score += penalty
+
+		// limitar penalidade por categoria para evitar distorção
+		cat := inc.RootEvent
+		penaltyByCategory[cat] += penalty
+		if penaltyByCategory[cat] < -40 {
+			penaltyByCategory[cat] = -40
+		}
+	}
+	for _, v := range penaltyByCategory {
+		score += v
 	}
 	if score < 0 {
 		return 0
@@ -114,6 +130,9 @@ func topIncidents(incidents []Incident, limit int) []Incident {
 		}
 		return pi > pj
 	})
+	for i := range sorted {
+		sorted[i].Priority = priorityScore(sorted[i])
+	}
 	if len(sorted) > limit {
 		sorted = sorted[:limit]
 	}
@@ -143,10 +162,14 @@ func buildLatencyInsight(ctx context.Context, repo *Repository, schema MetricsSc
 
 	delta := (cur - prev) / prev
 	if delta >= 0.30 {
+		percent := delta * 100
 		return []Insight{{
-			Type:     "anomaly",
-			Message:  "Latência média aumentou mais de 30% nas últimas janelas",
-			Severity: "warning",
+			Type:          "anomaly",
+			Message:       "Latência média aumentou mais de 30% nas últimas janelas",
+			Severity:      "warning",
+			Metric:        "wan_latency_ms",
+			ChangePercent: &percent,
+			Context:       "Comparação entre as duas últimas janelas de 15m",
 		}}
 	}
 	return nil
@@ -166,6 +189,8 @@ func buildCpuInsight(ctx context.Context, repo *Repository, schema MetricsSchema
 			Type:     "anomaly",
 			Message:  "CPU alta recorrente detectada nas últimas 30 minutos",
 			Severity: "warning",
+			Metric:   "cpu_percent",
+			Context:  "Mais de 10 amostras acima de 90%",
 		}}
 	}
 	return nil
@@ -184,7 +209,41 @@ func buildIncidentBurstInsight(ctx context.Context, repo *Repository, tenantID s
 			Type:     "instability",
 			Message:  "Muitos incidentes em curto intervalo de tempo",
 			Severity: "warning",
+			Context:  ">=5 incidentes em 10 minutos",
 		}}
 	}
 	return nil
+}
+
+func computeTrend(ctx context.Context, repo *Repository, tenantID string) string {
+	now := time.Now().UTC()
+	cur, err := repo.CountIncidentsInWindow(ctx, tenantID, now.Add(-30*time.Minute), now)
+	if err != nil {
+		return "stable"
+	}
+	prev, err := repo.CountIncidentsInWindow(ctx, tenantID, now.Add(-60*time.Minute), now.Add(-30*time.Minute))
+	if err != nil {
+		return "stable"
+	}
+	if cur > prev {
+		return "degrading"
+	}
+	if cur < prev {
+		return "improving"
+	}
+	return "stable"
+}
+
+func buildSummary(score int, status, trend string, top []Incident, insights []Insight) string {
+	incCount := len(top)
+	insCount := len(insights)
+	base := "Ambiente estável."
+	if status == "warning" {
+		base = "Ambiente requer atenção."
+	}
+	if status == "critical" {
+		base = "Ambiente crítico com alto risco."
+	}
+	return fmt.Sprintf("%s Health score %d. Trend %s. Top incidentes: %d. Insights ativos: %d.",
+		base, score, trend, incCount, insCount)
 }

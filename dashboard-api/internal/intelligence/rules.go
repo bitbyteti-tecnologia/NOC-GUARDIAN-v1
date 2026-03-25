@@ -41,6 +41,8 @@ func RecommendForEvent(eventType string) string {
 	switch eventType {
 	case "cpu_high":
 		return "Verificar processos, carga e consumo de CPU"
+	case "latency_high":
+		return "Verificar qualidade do link, perda de pacotes e rota"
 	case "memory_high":
 		return "Verificar consumo de memória e possíveis vazamentos"
 	case "device_offline":
