@@ -303,9 +303,9 @@ func listDevices(ctx context.Context, dbConn *sql.DB) ([]Device, error) {
 		return nil, err
 	}
 
-	q := "SELECT id::text, hostname, ip"
+	q := "SELECT id::text, hostname, ip::text"
 	if hasIPAddr {
-		q = "SELECT id::text, hostname, COALESCE(NULLIF(ip_address,''), ip) AS ip"
+		q = "SELECT id::text, hostname, COALESCE(NULLIF(ip_address,''), NULLIF(ip::text,'')) AS ip"
 	}
 	if hasCred {
 		q += ", snmp_credential_id::text"
@@ -314,9 +314,9 @@ func listDevices(ctx context.Context, dbConn *sql.DB) ([]Device, error) {
 	}
 	q += " FROM devices WHERE "
 	if hasIPAddr {
-		q += "COALESCE(NULLIF(ip_address,''), ip) <> ''"
+		q += "COALESCE(NULLIF(ip_address,''), NULLIF(ip::text,'')) IS NOT NULL"
 	} else {
-		q += "ip <> ''"
+		q += "ip IS NOT NULL"
 	}
 	rows, err := dbConn.QueryContext(ctx, q)
 	if err != nil {
@@ -365,8 +365,18 @@ WHERE tenant_id = $1`
 	out := make([]SNMPCredential, 0)
 	for rows.Next() {
 		var c SNMPCredential
-		if err := rows.Scan(&c.ID, &c.Version, &c.Community, &c.Username, &c.AuthProtocol, &c.AuthPassword, &c.PrivProtocol, &c.PrivPassword); err != nil {
+		var community, authPass, privPass sql.NullString
+		if err := rows.Scan(&c.ID, &c.Version, &community, &c.Username, &c.AuthProtocol, &authPass, &c.PrivProtocol, &privPass); err != nil {
 			return nil, err
+		}
+		if community.Valid {
+			c.Community = community.String
+		}
+		if authPass.Valid {
+			c.AuthPassword = authPass.String
+		}
+		if privPass.Valid {
+			c.PrivPassword = privPass.String
 		}
 		out = append(out, c)
 	}
