@@ -46,6 +46,38 @@ func (s *Service) Build(ctx context.Context, tenantID string) (IntelligenceRespo
 	insights := make([]Insight, 0)
 	recommendations := make([]Recommendation, 0)
 
+	onlineWindow := s.OnlineWindow
+	if onlineWindow == 0 {
+		onlineWindow = 2 * time.Minute
+	}
+	if schema != MetricsUnknown {
+		metrics, err := repo.LatestDeviceMetrics(ctx, schema, tenantID, []string{
+			"cpu_percent", "mem_used_pct", "disk_used_pct", "agent_heartbeat",
+		})
+		if err == nil && len(metrics) > 0 {
+			hostStatus, criticalHosts, warningHosts := computeHostSeverity(metrics, onlineWindow)
+			if hostStatus == "critical" {
+				status = "critical"
+				if score > 60 {
+					score = 60
+				}
+			} else if hostStatus == "warning" && status == "healthy" {
+				status = "warning"
+				if score > 80 {
+					score = 80
+				}
+			}
+			if criticalHosts > 0 || warningHosts > 0 {
+				insights = append(insights, Insight{
+					Type:     "telemetry",
+					Message:  fmt.Sprintf("Hosts críticos: %d, hosts em atenção: %d", criticalHosts, warningHosts),
+					Severity: hostStatus,
+					Context:  "Severidade baseada em telemetria recente de CPU/Memória/Disco e heartbeat",
+				})
+			}
+		}
+	}
+
 	insights = append(insights, buildLatencyInsight(ctx, repo, schema, tenantID)...)
 	insights = append(insights, buildCpuInsight(ctx, repo, schema, tenantID)...)
 	insights = append(insights, buildIncidentBurstInsight(ctx, repo, tenantID)...)
@@ -247,4 +279,75 @@ func buildSummary(score int, status, trend string, top []Incident, insights []In
 	}
 	return fmt.Sprintf("%s Health score %d. Trend %s. Top incidentes: %d. Insights ativos: %d.",
 		base, score, trend, incCount, insCount)
+}
+
+func computeHostSeverity(metrics []DeviceMetric, onlineWindow time.Duration) (string, int, int) {
+	type hostState struct {
+		cpu  *float64
+		mem  *float64
+		disk *float64
+		hb   *time.Time
+	}
+	states := map[string]*hostState{}
+	for _, m := range metrics {
+		st, ok := states[m.DeviceID]
+		if !ok {
+			st = &hostState{}
+			states[m.DeviceID] = st
+		}
+		switch m.Metric {
+		case "cpu_percent":
+			v := m.Value
+			st.cpu = &v
+		case "mem_used_pct":
+			v := m.Value
+			st.mem = &v
+		case "disk_used_pct":
+			v := m.Value
+			st.disk = &v
+		case "agent_heartbeat":
+			t := m.Time
+			st.hb = &t
+		}
+	}
+
+	worst := "ok"
+	criticalHosts := 0
+	warningHosts := 0
+	now := time.Now()
+
+	for _, st := range states {
+		sev := "ok"
+		if st.hb != nil && onlineWindow > 0 && now.Sub(*st.hb) > onlineWindow {
+			sev = "critical"
+		} else {
+			max := 0.0
+			if st.cpu != nil && *st.cpu > max {
+				max = *st.cpu
+			}
+			if st.mem != nil && *st.mem > max {
+				max = *st.mem
+			}
+			if st.disk != nil && *st.disk > max {
+				max = *st.disk
+			}
+			if max >= 90 {
+				sev = "critical"
+			} else if max >= 80 {
+				sev = "warning"
+			}
+		}
+
+		switch sev {
+		case "critical":
+			criticalHosts++
+			worst = "critical"
+		case "warning":
+			warningHosts++
+			if worst != "critical" {
+				worst = "warning"
+			}
+		}
+	}
+	return worst, criticalHosts, warningHosts
 }

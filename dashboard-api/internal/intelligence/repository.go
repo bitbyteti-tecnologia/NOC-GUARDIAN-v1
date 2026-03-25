@@ -229,3 +229,69 @@ func (r *Repository) CountMetricAbove(ctx context.Context, schema MetricsSchema,
 		return 0, nil
 	}
 }
+
+type DeviceMetric struct {
+	DeviceID string
+	Metric   string
+	Value    float64
+	Time     time.Time
+}
+
+func (r *Repository) LatestDeviceMetrics(ctx context.Context, schema MetricsSchema, tenantID string, metrics []string) ([]DeviceMetric, error) {
+	if len(metrics) == 0 {
+		return nil, nil
+	}
+	switch schema {
+	case MetricsV2:
+		q := `SELECT DISTINCT ON (device_id, metric_name)
+  device_id::text, metric_name, metric_value, timestamp
+FROM metrics
+WHERE metric_name = ANY($1)`
+		args := []any{metrics}
+		hasTenant, err := r.columnExists(ctx, "metrics", "tenant_id")
+		if err != nil {
+			return nil, err
+		}
+		if hasTenant {
+			q += " AND tenant_id = $2"
+			args = append(args, tenantID)
+		}
+		q += " ORDER BY device_id, metric_name, timestamp DESC"
+		rows, err := r.db.QueryContext(ctx, q, args...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		out := make([]DeviceMetric, 0)
+		for rows.Next() {
+			var d DeviceMetric
+			if err := rows.Scan(&d.DeviceID, &d.Metric, &d.Value, &d.Time); err != nil {
+				return nil, err
+			}
+			out = append(out, d)
+		}
+		return out, rows.Err()
+	case MetricsV1:
+		rows, err := r.db.QueryContext(ctx, `
+SELECT DISTINCT ON (device_id, metric)
+  device_id::text, metric, value, time
+FROM metrics
+WHERE metric = ANY($1)
+ORDER BY device_id, metric, time DESC`, metrics)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		out := make([]DeviceMetric, 0)
+		for rows.Next() {
+			var d DeviceMetric
+			if err := rows.Scan(&d.DeviceID, &d.Metric, &d.Value, &d.Time); err != nil {
+				return nil, err
+			}
+			out = append(out, d)
+		}
+		return out, rows.Err()
+	default:
+		return nil, nil
+	}
+}

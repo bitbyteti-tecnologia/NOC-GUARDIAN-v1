@@ -194,6 +194,7 @@ func main() {
 			return openTenant(ctx, cfg, tenantID)
 		},
 		LogPrefix:     "[intelligence] ",
+		OnlineWindow:  time.Duration(cfg.OnlineWindowSec) * time.Second,
 		EnforceTenant: cfg.EnforceTenant,
 	}
 	intelligence.RegisterRoutes(r, intSvc, writeJSON)
