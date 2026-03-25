@@ -114,6 +114,9 @@ RETURNING id::text`, tenantID, safe(snmp.Version, "v2c"), snmp.Community, snmp.U
 			return err
 		}
 		for _, addr := range list {
+			if !isHostUp(addr) {
+				continue
+			}
 			hostname := addr
 			_, err := conn.Exec(context.Background(), `
 INSERT INTO devices (hostname, ip, ip_address, type, os, snmp_credential_id)
@@ -227,4 +230,16 @@ func expandIPs(input string, maxHosts int) ([]string, error) {
 		out = append(out, cur.String())
 	}
 	return out, nil
+}
+
+func isHostUp(ip string) bool {
+	ports := []int{22, 80, 443, 161}
+	for _, p := range ports {
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, p), 250*time.Millisecond)
+		if err == nil {
+			_ = conn.Close()
+			return true
+		}
+	}
+	return false
 }
