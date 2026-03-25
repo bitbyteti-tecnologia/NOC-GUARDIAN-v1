@@ -30,7 +30,7 @@ services:
       - PGPORT=5432
       - PGHOST=db
       - DISCOVERY_URL=http://discovery:8085
-      - SNMP_CRED_KEY=9da35f61b1aa6fd1a61ead80690b0d7641b6c386286986b0cc860d74c058a148
+      - SNMP_CRED_KEY=${SNMP_CRED_KEY}
     build:
       context: ../central
     depends_on:
@@ -86,7 +86,7 @@ services:
       - SNMP_COMMUNITY=public
       - SNMP_VERSION=2c
       - DISCOVERY_LISTEN=:8085
-      - SNMP_CRED_KEY=9da35f61b1aa6fd1a61ead80690b0d7641b6c386286986b0cc860d74c058a148
+      - SNMP_CRED_KEY=${SNMP_CRED_KEY}
 
   nginx:
     image: nginx:1.25-alpine
