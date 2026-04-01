@@ -3,11 +3,16 @@
 package metrics
 
 import (
+	"encoding/json"
 	"log"
 	"math"
 	"os"
+	"os/exec"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -31,16 +36,21 @@ var (
 	pdhOnce    sync.Once
 	pdhInitErr error
 
-	pdhQuery      syscall.Handle
-	pdhNetRx      syscall.Handle
-	pdhNetTx      syscall.Handle
-	pdhDiskRead   syscall.Handle
-	pdhDiskWrite  syscall.Handle
+	pdhQuery     syscall.Handle
+	pdhNetRx     syscall.Handle
+	pdhNetTx     syscall.Handle
+	pdhDiskRead  syscall.Handle
+	pdhDiskWrite syscall.Handle
 
-	pdhNetRxList    []syscall.Handle
-	pdhNetTxList    []syscall.Handle
-	pdhDiskReadList []syscall.Handle
+	pdhNetRxList     []syscall.Handle
+	pdhNetTxList     []syscall.Handle
+	pdhDiskReadList  []syscall.Handle
 	pdhDiskWriteList []syscall.Handle
+
+	netMu       sync.Mutex
+	lastNetRx   uint64
+	lastNetTx   uint64
+	lastNetTime time.Time
 )
 
 func pdhInit() {
@@ -110,7 +120,7 @@ func pdhGet(counter syscall.Handle) (float64, error) {
 func collectNetDiskBps() (float64, float64, float64, float64) {
 	pdhInit()
 	if pdhInitErr != nil {
-		return 0, 0, 0, 0
+		return fallbackNetDiskBps()
 	}
 
 	pdh := syscall.NewLazyDLL("pdh.dll")
@@ -129,6 +139,9 @@ func collectNetDiskBps() (float64, float64, float64, float64) {
 			len(pdhNetRxList), len(pdhNetTxList), len(pdhDiskReadList), len(pdhDiskWriteList),
 			rx, tx, dr, dw,
 		)
+	}
+	if rx == 0 && tx == 0 && dr == 0 && dw == 0 {
+		return fallbackNetDiskBps()
 	}
 	return rx, tx, dr, dw
 }
@@ -219,4 +232,120 @@ func sumCounters(single syscall.Handle, list []syscall.Handle) float64 {
 		return 0
 	}
 	return vSingle
+}
+
+func fallbackNetDiskBps() (float64, float64, float64, float64) {
+	rx, tx := netAdapterBps()
+	dr, dw := diskIoBps()
+	return rx, tx, dr, dw
+}
+
+func netAdapterBps() (float64, float64) {
+	ps := findPowerShellWin()
+	cmd := exec.Command(ps, "-NoProfile", "-Command",
+		"@{rx=(Get-NetAdapterStatistics | Measure-Object -Property ReceivedBytes -Sum).Sum; tx=(Get-NetAdapterStatistics | Measure-Object -Property SentBytes -Sum).Sum} | ConvertTo-Json -Compress",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return 0, 0
+	}
+	var payload struct {
+		Rx *uint64 `json:"rx"`
+		Tx *uint64 `json:"tx"`
+	}
+	if err := json.Unmarshal(bytesTrim(out), &payload); err != nil {
+		return 0, 0
+	}
+	if payload.Rx == nil || payload.Tx == nil {
+		return 0, 0
+	}
+	now := time.Now()
+	netMu.Lock()
+	defer netMu.Unlock()
+	if lastNetTime.IsZero() {
+		lastNetTime = now
+		lastNetRx = *payload.Rx
+		lastNetTx = *payload.Tx
+		return 0, 0
+	}
+	dt := now.Sub(lastNetTime).Seconds()
+	if dt <= 0 {
+		return 0, 0
+	}
+	rxBps := float64(*payload.Rx-lastNetRx) / dt
+	txBps := float64(*payload.Tx-lastNetTx) / dt
+	lastNetTime = now
+	lastNetRx = *payload.Rx
+	lastNetTx = *payload.Tx
+	if rxBps < 0 {
+		rxBps = 0
+	}
+	if txBps < 0 {
+		txBps = 0
+	}
+	return rxBps, txBps
+}
+
+func diskIoBps() (float64, float64) {
+	ps := findPowerShellWin()
+	cmd := exec.Command(ps, "-NoProfile", "-Command",
+		"Get-CimInstance Win32_PerfRawData_PerfDisk_LogicalDisk | Where-Object { $_.Name -eq '_Total' } | Select-Object -Property DiskReadBytesPerSec,DiskWriteBytesPerSec | ConvertTo-Json -Compress",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return 0, 0
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(bytesTrim(out), &payload); err != nil {
+		return 0, 0
+	}
+	read := toFloat(payload["DiskReadBytesPerSec"])
+	write := toFloat(payload["DiskWriteBytesPerSec"])
+	if read < 0 {
+		read = 0
+	}
+	if write < 0 {
+		write = 0
+	}
+	return read, write
+}
+
+func toFloat(v any) float64 {
+	switch t := v.(type) {
+	case float64:
+		return t
+	case string:
+		if n, err := strconv.ParseFloat(strings.TrimSpace(t), 64); err == nil {
+			return n
+		}
+	}
+	return 0
+}
+
+func bytesTrim(b []byte) []byte {
+	return []byte(strings.TrimSpace(string(b)))
+}
+
+func findPowerShellWin() string {
+	candidates := []string{
+		`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`,
+		`C:\Windows\Sysnative\WindowsPowerShell\v1.0\powershell.exe`,
+		`C:\Windows\System32\WindowsPowerShell\v1.0\powershell`,
+		`powershell.exe`,
+		`powershell`,
+		`pwsh.exe`,
+		`pwsh`,
+	}
+	for _, c := range candidates {
+		if strings.Contains(c, `C:\`) {
+			if _, err := os.Stat(c); err == nil {
+				return c
+			}
+			continue
+		}
+		if p, err := exec.LookPath(c); err == nil {
+			return p
+		}
+	}
+	return "powershell"
 }

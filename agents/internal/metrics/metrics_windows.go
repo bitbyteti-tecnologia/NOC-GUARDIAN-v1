@@ -4,6 +4,10 @@ package metrics
 
 import (
 	"errors"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 	"unsafe"
@@ -21,10 +25,10 @@ type Snapshot struct {
 
 	Services map[string]string
 
-	NetRxBps      float64
-	NetTxBps      float64
-	DiskReadBps   float64
-	DiskWriteBps  float64
+	NetRxBps     float64
+	NetTxBps     float64
+	DiskReadBps  float64
+	DiskWriteBps float64
 
 	HasSys bool
 	System SystemInfo
@@ -127,13 +131,14 @@ func Collect(diskPath string) (Snapshot, error) {
 		return Snapshot{}, err
 	}
 
+	cpuPct := cpuPercentWMI()
 	rxBps, txBps, readBps, writeBps := collectNetDiskBps()
 
 	sys, hasSys := collectSystemInfo()
 
 	return Snapshot{
 		TS:            time.Now().UTC(),
-		CPUPercent:    0, // MVP: implementar depois (PDH/WMI)
+		CPUPercent:    cpuPct,
 		MemUsedPct:    memPct,
 		MemTotalBytes: totalBytes,
 		MemUsedBytes:  usedBytes,
@@ -159,4 +164,54 @@ func memInfo() (pct float64, total float64, used float64, err error) {
 	used = total - free
 	pct = float64(st.dwMemoryLoad)
 	return pct, total, used, nil
+}
+
+func cpuPercentWMI() float64 {
+	ps := findPowerShellWin()
+	cmd := exec.Command(ps, "-NoProfile", "-Command",
+		"Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select -ExpandProperty Average",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return 0
+	}
+	s := strings.TrimSpace(string(out))
+	if s == "" {
+		return 0
+	}
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0
+	}
+	if v < 0 {
+		return 0
+	}
+	if v > 100 {
+		v = 100
+	}
+	return v
+}
+
+func findPowerShellWin() string {
+	candidates := []string{
+		`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`,
+		`C:\Windows\Sysnative\WindowsPowerShell\v1.0\powershell.exe`,
+		`C:\Windows\System32\WindowsPowerShell\v1.0\powershell`,
+		`powershell.exe`,
+		`powershell`,
+		`pwsh.exe`,
+		`pwsh`,
+	}
+	for _, c := range candidates {
+		if strings.Contains(c, `C:\`) {
+			if _, err := os.Stat(c); err == nil {
+				return c
+			}
+			continue
+		}
+		if p, err := exec.LookPath(c); err == nil {
+			return p
+		}
+	}
+	return "powershell"
 }
