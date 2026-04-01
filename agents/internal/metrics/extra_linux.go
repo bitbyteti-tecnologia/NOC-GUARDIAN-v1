@@ -142,16 +142,6 @@ func ExtraMetrics(diskPath string, services []string, pingTargets []string, topN
 	return out
 }
 
-func clampPct(v float64) float64 {
-	if v < 0 {
-		return 0
-	}
-	if v > 100 {
-		return 100
-	}
-	return v
-}
-
 type procStat struct {
 	Name     string
 	CPU      float64
