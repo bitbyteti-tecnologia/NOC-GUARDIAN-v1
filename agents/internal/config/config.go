@@ -13,6 +13,8 @@ type Config struct {
 	TenantID  string // UUID do tenant
 	AgentID   string // ID gerado na primeira execução
 	IngestURL string // opcional (override), ex: https://.../api/v1/<tenant>/metrics/ingest
+	Services  []string // nomes de serviços a monitorar (comma-separated)
+	PingTargets []string // alvos para ping (comma-separated)
 }
 
 // Load carrega um arquivo simples no formato "chave: valor".
@@ -53,6 +55,10 @@ func Load(path string) (*Config, error) {
 			cfg.AgentID = v
 		case "ingest_url":
 			cfg.IngestURL = v
+		case "services":
+			cfg.Services = splitList(v)
+		case "ping_targets":
+			cfg.PingTargets = splitList(v)
 		}
 	}
 
@@ -68,4 +74,20 @@ func Load(path string) (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func splitList(v string) []string {
+	if v == "" {
+		return nil
+	}
+	parts := strings.Split(v, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		t := strings.TrimSpace(p)
+		if t == "" {
+			continue
+		}
+		out = append(out, t)
+	}
+	return out
 }

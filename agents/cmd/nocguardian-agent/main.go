@@ -195,6 +195,12 @@ func runAgent(cfgPath, diskPath string, intervalSec int, serverURL, tenantID str
 			}
 		}
 
+		// Métricas extras (CPU por core, discos, processos, serviços, updates, ping, temp, etc.)
+		extras := metrics.ExtraMetrics(diskPath, cfg.Services, cfg.PingTargets, 5)
+		for name, val := range extras {
+			metricMap[name] = client.Metric{T: ts, V: val}
+		}
+
 		payload := client.Payload{
 			AgentID:  cfg.AgentID,
 			Hostname: hostname,
