@@ -12,7 +12,7 @@ services:
       - POSTGRES_USER=guardian
       - POSTGRES_DB=guardian_master
     volumes:
-      - dbdata:/var/lib/postgresql/data
+      - compose_dbdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U guardian -d guardian_master"]
       interval: 10s
@@ -107,7 +107,8 @@ services:
       - nocnet
 
 volumes:
-  dbdata:
+  compose_dbdata:
+    external: true
 
 networks:
   nocnet:
