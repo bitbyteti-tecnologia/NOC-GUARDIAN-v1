@@ -4,6 +4,8 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
 import "./styles.css";
 import "./lib/api";
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";

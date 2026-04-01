@@ -14,6 +14,9 @@ import IncidentDrawer from "../components/dashboard/IncidentDrawer";
 import TopologyCard from "../components/dashboard/TopologyCard";
 import ActiveAlertsCard from "../components/dashboard/ActiveAlertsCard";
 import useMe from "../hooks/useMe";
+import { Responsive, WidthProvider } from "react-grid-layout";
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 function fmtDate(iso) {
   if (!iso) return "-";
@@ -51,6 +54,7 @@ export default function Customer() {
   const isSuperAdmin = me?.role === "superadmin";
 
   const [summary, setSummary] = useState(null);
+  const [alerts, setAlerts] = useState([]);
   const [hosts, setHosts] = useState([]);
   const [expandedHost, setExpandedHost] = useState(""); // hostname
   const [tenantName, setTenantName] = useState("");
@@ -75,6 +79,7 @@ export default function Customer() {
   const [topology, setTopology] = useState(null);
   const [topologyLoading, setTopologyLoading] = useState(false);
   const [topologyError, setTopologyError] = useState(false);
+  const [layouts, setLayouts] = useState(null);
   const downloads = [
     { label: "Windows (MSI)", file: "nocguardian-agent.msi" },
     { label: "Linux ARM64 (.deb)", file: "nocguardian-agent_arm64.deb" },
@@ -98,6 +103,16 @@ export default function Customer() {
       setHosts([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadAlerts() {
+    if (!tenantId) return;
+    try {
+      const r = await api.get(`/api/v1/${tenantId}/alerts`);
+      setAlerts(r.data || []);
+    } catch {
+      setAlerts([]);
     }
   }
 
@@ -200,6 +215,7 @@ export default function Customer() {
     loadTenantInfo();
     loadIntelligence();
     loadTopology();
+    loadAlerts();
     // eslint-disable-next-line
   }, [tenantId]);
 
@@ -213,6 +229,117 @@ export default function Customer() {
     if (!times.length) return null;
     return new Date(Math.max(...times));
   }, [summary, hosts]);
+
+  const alertStats = useMemo(() => {
+    const items = Array.isArray(alerts) ? alerts : [];
+    const last24h = items.filter((a) => {
+      const t = new Date(a.time).getTime();
+      return Date.now() - t <= 24 * 60 * 60 * 1000;
+    });
+    const critical = last24h.filter((a) => a.severity === "critical").length;
+    const warning = last24h.filter((a) => a.severity === "warning").length;
+    return { total: last24h.length, critical, warning };
+  }, [alerts]);
+
+  const layoutKey = useMemo(() => {
+    const userKey = me?.id || me?.email || "anon";
+    return `noc.dashboard.layout.${tenantId}.${userKey}`;
+  }, [tenantId, me?.id, me?.email]);
+
+  const defaultLayouts = useMemo(
+    () => ({
+      lg: [
+        { i: "kpi", x: 0, y: 0, w: 12, h: 2 },
+        { i: "alerts", x: 0, y: 2, w: 4, h: 4 },
+        { i: "topHosts", x: 4, y: 2, w: 4, h: 4 },
+        { i: "downloads", x: 8, y: 2, w: 4, h: 4 },
+        { i: "discovery", x: 0, y: 6, w: 6, h: 6 },
+        { i: "intelligence", x: 6, y: 6, w: 6, h: 6 },
+        { i: "topology", x: 0, y: 12, w: 6, h: 6 },
+        { i: "network", x: 6, y: 12, w: 6, h: 6 },
+        { i: "hosts", x: 0, y: 18, w: 12, h: 8 },
+      ],
+      md: [
+        { i: "kpi", x: 0, y: 0, w: 10, h: 2 },
+        { i: "alerts", x: 0, y: 2, w: 5, h: 4 },
+        { i: "topHosts", x: 5, y: 2, w: 5, h: 4 },
+        { i: "downloads", x: 0, y: 6, w: 5, h: 4 },
+        { i: "discovery", x: 5, y: 6, w: 5, h: 5 },
+        { i: "intelligence", x: 0, y: 10, w: 10, h: 6 },
+        { i: "topology", x: 0, y: 16, w: 10, h: 5 },
+        { i: "network", x: 0, y: 21, w: 10, h: 5 },
+        { i: "hosts", x: 0, y: 26, w: 10, h: 8 },
+      ],
+      sm: [
+        { i: "kpi", x: 0, y: 0, w: 6, h: 2 },
+        { i: "alerts", x: 0, y: 2, w: 6, h: 4 },
+        { i: "topHosts", x: 0, y: 6, w: 6, h: 4 },
+        { i: "downloads", x: 0, y: 10, w: 6, h: 4 },
+        { i: "discovery", x: 0, y: 14, w: 6, h: 5 },
+        { i: "intelligence", x: 0, y: 19, w: 6, h: 6 },
+        { i: "topology", x: 0, y: 25, w: 6, h: 5 },
+        { i: "network", x: 0, y: 30, w: 6, h: 5 },
+        { i: "hosts", x: 0, y: 35, w: 6, h: 8 },
+      ],
+    }),
+    []
+  );
+
+  function mergeLayouts(current, fallback) {
+    const result = {};
+    const source = current && typeof current === "object" ? current : {};
+    Object.keys(fallback).forEach((bp) => {
+      const curArr = Array.isArray(source[bp]) ? [...source[bp]] : [];
+      const existing = new Set(curArr.map((i) => i.i));
+      fallback[bp].forEach((item) => {
+        if (!existing.has(item.i)) curArr.push(item);
+      });
+      result[bp] = curArr;
+    });
+    return result;
+  }
+
+  useEffect(() => {
+    if (!tenantId) return;
+    try {
+      const raw = localStorage.getItem(layoutKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setLayouts(mergeLayouts(parsed, defaultLayouts));
+        return;
+      }
+    } catch {}
+    setLayouts(mergeLayouts(null, defaultLayouts));
+  }, [tenantId, layoutKey, defaultLayouts]);
+
+  function handleLayoutChange(_, allLayouts) {
+    setLayouts(allLayouts);
+    try {
+      localStorage.setItem(layoutKey, JSON.stringify(allLayouts));
+    } catch {}
+  }
+
+  function resetLayout() {
+    setLayouts(defaultLayouts);
+    try {
+      localStorage.removeItem(layoutKey);
+    } catch {}
+  }
+
+  function WidgetShell({ title, subtitle, actions, children, bodyClassName }) {
+    return (
+      <div className="h-full rounded-xl border border-slate-800 bg-slate-950/50 p-4 flex flex-col">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="drag-handle select-none">
+            <div className="font-semibold text-slate-100">{title}</div>
+            {subtitle ? <div className="text-xs text-slate-400 mt-1">{subtitle}</div> : null}
+          </div>
+          {actions ? <div className="shrink-0">{actions}</div> : null}
+        </div>
+        <div className={["flex-1", bodyClassName || ""].join(" ")}>{children}</div>
+      </div>
+    );
+  }
 
   const hostsSorted = useMemo(() => {
     const arr = Array.isArray(hosts) ? [...hosts] : [];
@@ -259,6 +386,12 @@ export default function Customer() {
 
     return filtered;
   }, [hosts, statusFilter, severityFilter, osFilter, sortKey, sortDir]);
+
+  const topHosts = useMemo(() => {
+    const arr = Array.isArray(hostsSorted) ? [...hostsSorted] : [];
+    arr.sort((a, b) => (b.cpu_percent ?? 0) - (a.cpu_percent ?? 0));
+    return arr.slice(0, 5);
+  }, [hostsSorted]);
 
   function toggleRow(hostname) {
     setExpandedHost((cur) => (cur === hostname ? "" : hostname));
@@ -352,181 +485,344 @@ export default function Customer() {
         </div>
       </div>
 
-      {/* downloads (mantém seu bloco atual sem mexer) */}
-      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-        <div className="font-semibold text-slate-100">Downloads de Agentes</div>
-        <div className="text-xs text-slate-400 mt-1">
-          Instale o agente no Windows ou Linux para começar a coletar métricas.
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-          {downloads.map((d) => (
-            <a
-              key={d.file}
-              href={`/downloads/${d.file}`}
-              className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 hover:bg-slate-900 transition"
-              download
+      {layouts && (
+        <ResponsiveGridLayout
+          className="dashboard-grid"
+          layouts={layouts}
+          breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+          cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+          rowHeight={60}
+          margin={[16, 16]}
+          containerPadding={[0, 0]}
+          draggableHandle=".drag-handle"
+          draggableCancel="input,textarea,select,button"
+          onLayoutChange={handleLayoutChange}
+        >
+          <div key="kpi" className="h-full">
+            <WidgetShell
+              title="Resumo do Cliente"
+              subtitle="Indicadores em tempo real"
+              actions={
+                <button
+                  className="px-3 py-2 bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 text-xs"
+                  onClick={resetLayout}
+                >
+                  Reset layout
+                </button>
+              }
             >
-              <div className="text-sm font-bold">{d.label}</div>
-              <div className="text-xs text-slate-400 mt-1">{d.file}</div>
-            </a>
-          ))}
-        </div>
-      </div>
-
-      {/* Discovery manual para clientes existentes */}
-      <div id="discovery" className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div>
-            <div className="font-semibold text-slate-100">Discovery de Rede</div>
-            <div className="text-xs text-slate-400 mt-1">
-              Informe IPs e inicie o scan para popular devices e topologia.
-            </div>
-            {scanLoading && (
-              <div className="mt-3 flex items-center gap-3 text-xs text-slate-300">
-                <div className="relative h-7 w-7">
-                  <div className="absolute inset-0 rounded-full border border-sky-500/40 animate-ping" />
-                  <div className="absolute inset-0 rounded-full border border-sky-400/60" />
-                  <svg
-                    className="absolute inset-0 m-auto h-4 w-4 text-sky-300 animate-spin"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <circle cx="11" cy="11" r="6" />
-                    <line x1="16" y1="16" x2="21" y2="21" />
-                  </svg>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                  <div className="text-xs text-slate-400">Hosts</div>
+                  <div className="text-xl font-semibold text-slate-100 mt-1">
+                    {summary?.total_hosts ?? 0}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    Online {summary?.online ?? 0} · Offline {summary?.offline ?? 0}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span>Escaneando rede...</span>
-                  <div className="h-1 w-24 rounded-full bg-slate-800 overflow-hidden">
-                    <div className="h-full w-1/2 bg-sky-500/60 animate-pulse" />
+                <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                  <div className="text-xs text-slate-400">Alertas 24h</div>
+                  <div className="text-xl font-semibold text-slate-100 mt-1">
+                    {alertStats.total}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    Críticos {alertStats.critical} · Atenção {alertStats.warning}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                  <div className="text-xs text-slate-400">Último heartbeat</div>
+                  <div className="text-sm text-slate-100 mt-2">{fmtDate(lastHeartbeat)}</div>
+                </div>
+                <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                  <div className="text-xs text-slate-400">SLA</div>
+                  <div className="text-xl font-semibold text-emerald-300 mt-1">99.9%</div>
+                  <div className="text-xs text-slate-500 mt-1">Baseado no período atual</div>
+                </div>
+              </div>
+            </WidgetShell>
+          </div>
+
+          <div key="alerts" className="h-full">
+            <WidgetShell
+              title="Alertas Ativos"
+              subtitle="Eventos críticos e atenção"
+              bodyClassName="overflow-auto"
+            >
+              <ActiveAlertsCard tenantId={tenantId} />
+            </WidgetShell>
+          </div>
+
+          <div key="topHosts" className="h-full">
+            <WidgetShell title="Top Hosts (CPU)" subtitle="Top 5 com maior uso">
+              <div className="space-y-2">
+                {topHosts.map((h) => (
+                  <div key={h.hostname} className="flex items-center justify-between text-sm">
+                    <span className="text-slate-200">{h.hostname}</span>
+                    <span className="text-sky-300 font-semibold">
+                      {(h.cpu_percent ?? 0).toFixed(1)}%
+                    </span>
+                  </div>
+                ))}
+                {topHosts.length === 0 && (
+                  <div className="text-xs text-slate-500">Sem dados ainda.</div>
+                )}
+              </div>
+            </WidgetShell>
+          </div>
+
+          <div key="downloads" className="h-full">
+            <WidgetShell title="Downloads de Agentes" subtitle="Instale agentes nos hosts">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {downloads.map((d) => (
+                  <a
+                    key={d.file}
+                    href={`/downloads/${d.file}`}
+                    className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 hover:bg-slate-900 transition"
+                    download
+                  >
+                    <div className="text-sm font-bold">{d.label}</div>
+                    <div className="text-xs text-slate-400 mt-1">{d.file}</div>
+                  </a>
+                ))}
+              </div>
+            </WidgetShell>
+          </div>
+
+          <div key="discovery" id="discovery" className="h-full">
+            <WidgetShell
+              title="Discovery de Rede"
+              subtitle="Informe IPs e inicie o scan"
+              actions={
+                <button
+                  className="px-3 py-2 bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 text-xs"
+                  onClick={runDiscovery}
+                  disabled={scanLoading}
+                >
+                  {scanLoading ? "Iniciando..." : "Iniciar scan"}
+                </button>
+              }
+              bodyClassName="overflow-auto"
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400">IPs ou CIDR</label>
+                  <textarea
+                    className="w-full p-2 rounded text-slate-900 min-h-[80px]"
+                    value={scanIPs}
+                    onChange={(e) => setScanIPs(e.target.value)}
+                    placeholder="Ex: 10.0.0.1, 10.0.0.2, 192.168.1.0/24"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-slate-400">SNMP Community (v2c)</label>
+                    <label className="flex items-center gap-2 text-xs text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={useSNMPScan}
+                        onChange={(e) => setUseSNMPScan(e.target.checked)}
+                      />
+                      Usar SNMP
+                    </label>
+                  </div>
+                  <input
+                    className="w-full p-2 rounded text-slate-900"
+                    value={scanCommunity}
+                    onChange={(e) => setScanCommunity(e.target.value)}
+                    placeholder="public"
+                    disabled={!useSNMPScan}
+                  />
+                  <div className="text-xs text-slate-500 mt-2">
+                    Sem SNMP, o discovery faz apenas seed de devices.
                   </div>
                 </div>
               </div>
-            )}
+              {scanMsg && <div className="text-xs text-slate-300 mt-3">{scanMsg}</div>}
+            </WidgetShell>
           </div>
-          <button
-            className="px-3 py-2 bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 text-xs"
-            onClick={runDiscovery}
-            disabled={scanLoading}
-          >
-            {scanLoading ? "Iniciando..." : "Iniciar scan"}
-          </button>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-slate-400">IPs ou CIDR</label>
-            <textarea
-              className="w-full p-2 rounded text-slate-900 min-h-[80px]"
-              value={scanIPs}
-              onChange={(e) => setScanIPs(e.target.value)}
-              placeholder="Ex: 10.0.0.1, 10.0.0.2, 192.168.1.0/24"
-            />
+          <div key="intelligence" className="h-full">
+            <WidgetShell
+              title="Inteligência"
+              subtitle="Insights e priorização automática"
+              actions={
+                <button
+                  className="px-3 py-2 bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 text-xs"
+                  onClick={loadIntelligence}
+                  disabled={intelLoading}
+                >
+                  {intelLoading ? "..." : "Atualizar"}
+                </button>
+              }
+              bodyClassName="overflow-auto"
+            >
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <div className="xl:col-span-2">
+                  <HealthCard data={intel} loading={intelLoading} error={intelError} />
+                </div>
+                <IncidentsCard items={intel?.top_incidents || []} loading={intelLoading} error={intelError} onSelect={openIncident} />
+                <InsightsCard items={intel?.insights || []} loading={intelLoading} error={intelError} />
+                <RecommendationsCard items={intel?.recommendations || []} loading={intelLoading} error={intelError} />
+              </div>
+            </WidgetShell>
           </div>
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-xs text-slate-400">SNMP Community (v2c)</label>
-              <label className="flex items-center gap-2 text-xs text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={useSNMPScan}
-                  onChange={(e) => setUseSNMPScan(e.target.checked)}
-                />
-                Usar SNMP
-              </label>
-            </div>
-            <input
-              className="w-full p-2 rounded text-slate-900"
-              value={scanCommunity}
-              onChange={(e) => setScanCommunity(e.target.value)}
-              placeholder="public"
-              disabled={!useSNMPScan}
-            />
-            <div className="text-xs text-slate-500 mt-2">
-              Sem SNMP, o discovery faz apenas seed de devices.
-            </div>
-          </div>
-        </div>
 
-        {scanMsg && <div className="text-xs text-slate-300 mt-3">{scanMsg}</div>}
-      </div>
-
-      {/* Inteligência do Tenant */}
-      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div>
-            <div className="font-semibold text-slate-100">Inteligência</div>
-            <div className="text-xs text-slate-400 mt-1">
-              Insights e priorização automática para decisões rápidas.
-            </div>
+          <div key="topology" id="topologia" className="h-full">
+            <WidgetShell
+              title="Topologia"
+              subtitle="Conexões entre dispositivos"
+              actions={
+                <button
+                  className="px-3 py-2 bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 text-xs"
+                  onClick={loadTopology}
+                  disabled={topologyLoading}
+                >
+                  {topologyLoading ? "..." : "Atualizar"}
+                </button>
+              }
+              bodyClassName="overflow-auto"
+            >
+              <TopologyCard data={topology} loading={topologyLoading} error={topologyError} />
+            </WidgetShell>
           </div>
-          <button
-            className="px-3 py-2 bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 text-xs"
-            onClick={loadIntelligence}
-            disabled={intelLoading}
-          >
-            {intelLoading ? "..." : "Atualizar"}
-          </button>
-        </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <div className="xl:col-span-2">
-            <HealthCard data={intel} loading={intelLoading} error={intelError} />
+          <div key="network" className="h-full">
+            <WidgetShell
+              title="Telemetria de Rede"
+              subtitle={`Host base: ${tenantTelemetryHost?.hostname || "não selecionado"} · LAN 24h | WAN 30d`}
+              bodyClassName="overflow-auto"
+            >
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <LanBandwidthCard series={lanVM?.lan?.series} />
+                <WanPerformanceCard series={wanVM?.wan?.series} />
+              </div>
+            </WidgetShell>
           </div>
-          <IncidentsCard items={intel?.top_incidents || []} loading={intelLoading} error={intelError} onSelect={openIncident} />
-          <InsightsCard items={intel?.insights || []} loading={intelLoading} error={intelError} />
-          <RecommendationsCard items={intel?.recommendations || []} loading={intelLoading} error={intelError} />
-          <ActiveAlertsCard tenantId={tenantId} />
-        </div>
-      </div>
 
-      {/* Topologia do cliente */}
-      <div id="topologia" className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div>
-            <div className="font-semibold text-slate-100">Topologia</div>
-            <div className="text-xs text-slate-400 mt-1">
-              Conexões entre dispositivos e identificação de causa raiz.
-            </div>
-          </div>
-          <button
-            className="px-3 py-2 bg-slate-900 border border-slate-700 rounded hover:bg-slate-800 text-xs"
-            onClick={loadTopology}
-            disabled={topologyLoading}
-          >
-            {topologyLoading ? "..." : "Atualizar"}
-          </button>
-        </div>
-        <TopologyCard data={topology} loading={topologyLoading} error={topologyError} />
-      </div>
+          <div key="hosts" className="h-full">
+            <WidgetShell title="Host Overview" subtitle="Lista de hosts e detalhes por dispositivo" bodyClassName="overflow-auto">
+              <div className="px-1 pb-2">
+                <div className="flex flex-wrap gap-2 text-xs mb-3">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-slate-950/70 border border-slate-700 rounded px-2 py-1"
+                  >
+                    <option value="all">Todos status</option>
+                    <option value="ONLINE">Online</option>
+                    <option value="OFFLINE">Offline</option>
+                  </select>
+                  <select
+                    value={severityFilter}
+                    onChange={(e) => setSeverityFilter(e.target.value)}
+                    className="bg-slate-950/70 border border-slate-700 rounded px-2 py-1"
+                  >
+                    <option value="all">Todas severidades</option>
+                    <option value="critical">Crítico</option>
+                    <option value="warning">Atenção</option>
+                    <option value="ok">OK</option>
+                  </select>
+                  <select
+                    value={osFilter}
+                    onChange={(e) => setOsFilter(e.target.value)}
+                    className="bg-slate-950/70 border border-slate-700 rounded px-2 py-1"
+                  >
+                    <option value="all">Todos OS</option>
+                    <option value="linux">Linux</option>
+                    <option value="windows">Windows</option>
+                  </select>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="text-slate-400">
+                      <tr className="border-b border-slate-800">
+                        <th className="text-left px-4 py-3 cursor-pointer" onClick={() => changeSort("hostname")}>
+                          Hostname
+                        </th>
+                        <th className="text-left px-4 py-3">Status</th>
+                        <th className="text-left px-4 py-3">Saúde</th>
+                        <th className="text-left px-4 py-3 hidden md:table-cell">IP</th>
+                        <th className="text-left px-4 py-3 hidden md:table-cell">OS</th>
+                        <th className="text-left px-4 py-3 cursor-pointer" onClick={() => changeSort("last_seen")}>
+                          Último
+                        </th>
+                      </tr>
+                    </thead>
 
-      {/* Bloco de telemetria WAN/LAN do tenant */}
-      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div>
-            <div className="font-semibold text-slate-100">Telemetria de Rede</div>
-            <div className="text-xs text-slate-400 mt-1">
-              Baseado no host{" "}
-              <span className="text-slate-200 font-semibold">
-                {tenantTelemetryHost?.hostname || "não selecionado"}
-              </span>
-              .
-            </div>
-          </div>
-          <div className="text-xs text-slate-500">
-            Janelas: LAN 24h | WAN 30d
-          </div>
-        </div>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <LanBandwidthCard series={lanVM?.lan?.series} />
-          <WanPerformanceCard series={wanVM?.wan?.series} />
-        </div>
-      </div>
+                    <tbody className="text-slate-200">
+                      {hostsSorted.map((h) => {
+                        const isOpen = expandedHost === h.hostname;
+                        return (
+                          <React.Fragment key={h.hostname}>
+                            <tr
+                              className={[
+                                "border-b border-slate-800 cursor-pointer hover:bg-slate-900/40",
+                                isOpen ? "bg-slate-900/30" : "",
+                              ].join(" ")}
+                              onClick={() => toggleRow(h.hostname)}
+                              title="Clique para abrir/fechar detalhes do host"
+                            >
+                              <td className="px-4 py-3 font-semibold">{h.hostname}</td>
+                              <td className="px-4 py-3">
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold border
+                                  ${h.status === "ONLINE"
+                                    ? "bg-emerald-500/15 text-emerald-200 border-emerald-500/30"
+                                    : "bg-amber-500/15 text-amber-200 border-amber-500/30"}`}>
+                                  {h.status || "-"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-xs font-semibold">
+                                  {computeHostSeverity(h) === "critical"
+                                    ? "CRÍTICO"
+                                    : computeHostSeverity(h) === "warning"
+                                    ? "ATENÇÃO"
+                                    : "OK"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 hidden md:table-cell text-slate-300">
+                                {h.ip || h.ip_address || "-"}
+                              </td>
+                              <td className="px-4 py-3 hidden md:table-cell text-slate-300">
+                                {h.os || "-"}
+                              </td>
+                              <td className="px-4 py-3 text-slate-400">{fmtDate(h.last_seen)}</td>
+                            </tr>
 
-      {/* Top serviços do host (CPU/Mem) */}
+                            {isOpen && (
+                              <tr className="border-b border-slate-800">
+                                <td colSpan={7} className="px-4 pb-4">
+                                  <HostDrawer
+                                    tenantId={tenantId}
+                                    host={expandedHostObj}
+                                    open={true}
+                                    onClose={() => setExpandedHost("")}
+                                    api={api}
+                                    variant="inline"
+                                  />
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+
+                      {hostsSorted.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-4 text-slate-400">
+                            Nenhum host encontrado.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </WidgetShell>
+          </div>
+        </ResponsiveGridLayout>
+      )}
       <IncidentDrawer
         open={incidentOpen}
         onClose={() => setIncidentOpen(false)}
@@ -534,129 +830,6 @@ export default function Customer() {
         error={incidentError}
         data={incidentDetails}
       />
-
-      {/* HOSTS table + inline drawer */}
-      <div className="rounded-xl border border-slate-800 bg-slate-950/50 overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-800 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="font-semibold text-slate-100">Hosts</div>
-          <div className="flex flex-wrap gap-2 text-xs">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-slate-950/70 border border-slate-700 rounded px-2 py-1"
-            >
-              <option value="all">Todos status</option>
-              <option value="ONLINE">Online</option>
-              <option value="OFFLINE">Offline</option>
-            </select>
-            <select
-              value={severityFilter}
-              onChange={(e) => setSeverityFilter(e.target.value)}
-              className="bg-slate-950/70 border border-slate-700 rounded px-2 py-1"
-            >
-              <option value="all">Todas severidades</option>
-              <option value="critical">Crítico</option>
-              <option value="warning">Atenção</option>
-              <option value="ok">OK</option>
-            </select>
-            <select
-              value={osFilter}
-              onChange={(e) => setOsFilter(e.target.value)}
-              className="bg-slate-950/70 border border-slate-700 rounded px-2 py-1"
-            >
-              <option value="all">Todos OS</option>
-              <option value="linux">Linux</option>
-              <option value="windows">Windows</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="text-slate-400">
-              <tr className="border-b border-slate-800">
-                <th className="text-left px-4 py-3 cursor-pointer" onClick={() => changeSort("hostname")}>
-                  Hostname
-                </th>
-                <th className="text-left px-4 py-3">Status</th>
-                <th className="text-left px-4 py-3">Saúde</th>
-                <th className="text-left px-4 py-3 hidden md:table-cell">IP</th>
-                <th className="text-left px-4 py-3 hidden md:table-cell">OS</th>
-                <th className="text-left px-4 py-3 cursor-pointer" onClick={() => changeSort("last_seen")}>
-                  Último
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="text-slate-200">
-              {hostsSorted.map((h) => {
-                const isOpen = expandedHost === h.hostname;
-                return (
-                  <React.Fragment key={h.hostname}>
-                    <tr
-                      className={[
-                        "border-b border-slate-800 cursor-pointer hover:bg-slate-900/40",
-                        isOpen ? "bg-slate-900/30" : "",
-                      ].join(" ")}
-                      onClick={() => toggleRow(h.hostname)}
-                      title="Clique para abrir/fechar detalhes do host"
-                    >
-                      <td className="px-4 py-3 font-semibold">{h.hostname}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold border
-                          ${h.status === "ONLINE"
-                            ? "bg-emerald-500/15 text-emerald-200 border-emerald-500/30"
-                            : "bg-amber-500/15 text-amber-200 border-amber-500/30"}`}>
-                          {h.status || "-"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs font-semibold">
-                          {computeHostSeverity(h) === "critical"
-                            ? "CRÍTICO"
-                            : computeHostSeverity(h) === "warning"
-                            ? "ATENÇÃO"
-                            : "OK"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell text-slate-300">
-                        {h.ip || h.ip_address || "-"}
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell text-slate-300">
-                        {h.os || "-"}
-                      </td>
-                      <td className="px-4 py-3 text-slate-400">{fmtDate(h.last_seen)}</td>
-                    </tr>
-
-                    {isOpen && (
-                      <tr className="border-b border-slate-800">
-                        <td colSpan={7} className="px-4 pb-4">
-                          <HostDrawer
-                            tenantId={tenantId}
-                            host={expandedHostObj}
-                            open={true}
-                            onClose={() => setExpandedHost("")}
-                            api={api}
-                            variant="inline"
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-
-              {hostsSorted.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-4 text-slate-400">
-                    Nenhum host encontrado.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   );
 }

@@ -12,3 +12,16 @@
 .grid-cards {
   @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
 }
+
+.dashboard-grid .drag-handle {
+  cursor: move;
+}
+
+.dashboard-grid .react-grid-item {
+  transition: all 180ms ease;
+}
+
+.dashboard-grid .react-grid-placeholder {
+  background: rgba(14, 116, 144, 0.35);
+  border: 1px dashed rgba(56, 189, 248, 0.6);
+}
