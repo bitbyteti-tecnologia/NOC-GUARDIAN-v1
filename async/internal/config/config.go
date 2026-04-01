@@ -72,8 +72,8 @@ func Load() Config {
 		WorkerBatchFlushMS:  envInt("WORKER_BATCH_FLUSH_MS", 1000),
 		StatsIntervalSec:    envInt("STATS_INTERVAL_SEC", 10),
 
-		CPUThreshold:        envFloat("CPU_THRESHOLD", 90),
-		MemoryThreshold:     envFloat("MEMORY_THRESHOLD", 85),
+		CPUThreshold:        envFloat("CPU_THRESHOLD", 85),
+		MemoryThreshold:     envFloat("MEMORY_THRESHOLD", 80),
 		OfflineThresholdSec: envInt("OFFLINE_THRESHOLD_SEC", 120),
 		OfflineCheckSec:     envInt("OFFLINE_CHECK_SEC", 30),
 

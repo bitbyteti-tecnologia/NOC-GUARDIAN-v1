@@ -162,6 +162,19 @@ func main() {
 		resp, err := handleSeries(r.Context(), cfg, tenantId, hostname, metric, window)
 		writeJSON(w, resp, err)
 	})
+	r.Get("/api/v1/tenants/{tenantId}/dashboard/latest", func(w http.ResponseWriter, r *http.Request) {
+		tenantId := chi.URLParam(r, "tenantId")
+		hostname := r.URL.Query().Get("hostname")
+		prefix := r.URL.Query().Get("metric_prefix")
+		limitRaw := r.URL.Query().Get("limit")
+		if hostname == "" || prefix == "" {
+			http.Error(w, "hostname e metric_prefix são obrigatórios", http.StatusBadRequest)
+			return
+		}
+		limit := atoi(limitRaw, 50)
+		resp, err := handleLatestMetrics(r.Context(), cfg, tenantId, hostname, prefix, limit)
+		writeJSON(w, resp, err)
+	})
 
 	r.Get("/api/v1/tenants/{tenantId}/dashboard/host/{hostname}/inventory/latest", HostInventoryLatestHandler)
 
@@ -493,5 +506,68 @@ ORDER BY bucket;`, bucket)
 		Metric:   metricName,
 		Window:   window,
 		Points:   pts,
+	}, rows.Err()
+}
+
+type LatestMetric struct {
+	Metric string    `json:"metric"`
+	Value  float64   `json:"value"`
+	Time   time.Time `json:"time"`
+}
+
+type LatestResp struct {
+	Hostname     string         `json:"hostname"`
+	MetricPrefix string         `json:"metric_prefix"`
+	Items        []LatestMetric `json:"items"`
+}
+
+func handleLatestMetrics(ctx context.Context, cfg Config, tenantId, hostname, metricPrefix string, limit int) (LatestResp, error) {
+	tdb, _, err := openTenant(ctx, cfg, tenantId)
+	if err != nil {
+		return LatestResp{}, err
+	}
+	defer tdb.Close()
+
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	q := `
+WITH latest AS (
+  SELECT DISTINCT ON (metric)
+    metric, value, time
+  FROM metrics
+  WHERE labels->>'hostname' = $1
+    AND metric LIKE $2
+  ORDER BY metric, time DESC
+)
+SELECT metric, value, time
+FROM latest
+ORDER BY time DESC
+LIMIT $3;`
+
+	c, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	rows, err := tdb.QueryContext(c, q, hostname, metricPrefix+"%", limit)
+	if err != nil {
+		return LatestResp{}, err
+	}
+	defer rows.Close()
+
+	items := make([]LatestMetric, 0)
+	for rows.Next() {
+		var m LatestMetric
+		if err := rows.Scan(&m.Metric, &m.Value, &m.Time); err != nil {
+			return LatestResp{}, err
+		}
+		items = append(items, m)
+	}
+	return LatestResp{
+		Hostname:     hostname,
+		MetricPrefix: metricPrefix,
+		Items:        items,
 	}, rows.Err()
 }

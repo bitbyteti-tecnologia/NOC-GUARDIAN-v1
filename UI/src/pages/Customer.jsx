@@ -12,6 +12,7 @@ import InsightsCard from "../components/dashboard/InsightsCard";
 import RecommendationsCard from "../components/dashboard/RecommendationsCard";
 import IncidentDrawer from "../components/dashboard/IncidentDrawer";
 import TopologyCard from "../components/dashboard/TopologyCard";
+import TopServicesCard from "../components/dashboard/TopServicesCard";
 import useMe from "../hooks/useMe";
 
 function fmtDate(iso) {
@@ -523,6 +524,9 @@ export default function Customer() {
           <WanPerformanceCard series={wanVM?.wan?.series} />
         </div>
       </div>
+
+      {/* Top serviços do host (CPU/Mem) */}
+      <TopServicesCard tenantId={tenantId} hostname={tenantTelemetryHost?.hostname || ""} />
 
       <IncidentDrawer
         open={incidentOpen}
