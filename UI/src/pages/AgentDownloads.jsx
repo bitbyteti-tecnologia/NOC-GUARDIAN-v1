@@ -9,6 +9,7 @@ export default function AgentDownloads() {
   const [tokenLoading, setTokenLoading] = useState(false);
   const [tokenError, setTokenError] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [createdAt, setCreatedAt] = useState("");
 
   const downloads = useMemo(
     () => [
@@ -23,14 +24,43 @@ export default function AgentDownloads() {
 
   useEffect(() => {
     if (!tenantId) return;
+    loadToken();
+  }, [tenantId]);
+
+  async function loadToken() {
     setTokenLoading(true);
     setTokenError(false);
-    api
-      .post(`/api/v1/tenants/${tenantId}/activation-token`)
-      .then((r) => setToken(r.data?.token || ""))
-      .catch(() => setTokenError(true))
-      .finally(() => setTokenLoading(false));
-  }, [tenantId]);
+    try {
+      const r = await api.get(`/api/v1/tenants/${tenantId}/activation-token`);
+      setToken(r.data?.token || "");
+      setCreatedAt(r.data?.created_at || "");
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        await createToken(false);
+      } else {
+        setTokenError(true);
+      }
+    } finally {
+      setTokenLoading(false);
+    }
+  }
+
+  async function createToken(rotate) {
+    setTokenLoading(true);
+    setTokenError(false);
+    try {
+      const r = await api.post(
+        `/api/v1/tenants/${tenantId}/activation-token`,
+        rotate ? { rotate: true } : {}
+      );
+      setToken(r.data?.token || "");
+      setCreatedAt(r.data?.created_at || "");
+    } catch {
+      setTokenError(true);
+    } finally {
+      setTokenLoading(false);
+    }
+  }
 
   async function copyToken() {
     try {
@@ -79,14 +109,28 @@ export default function AgentDownloads() {
             {tokenError && (
               <span className="ml-2 text-xs text-amber-300">falha ao gerar</span>
             )}
+            {createdAt && !tokenLoading && (
+              <span className="ml-3 text-xs text-slate-400">
+                criado em {new Date(createdAt).toLocaleString("pt-BR")}
+              </span>
+            )}
           </div>
-          <button
-            className="px-3 py-2 bg-sky-600 rounded text-sm font-semibold hover:bg-sky-500 disabled:opacity-50"
-            onClick={copyToken}
-            disabled={!token}
-          >
-            {copied ? "Copiado" : "Copiar"}
-          </button>
+          <div className="flex flex-col md:flex-row gap-2">
+            <button
+              className="px-3 py-2 bg-slate-800 rounded text-sm font-semibold hover:bg-slate-700 disabled:opacity-50"
+              onClick={() => createToken(true)}
+              disabled={tokenLoading}
+            >
+              Gerar novo token
+            </button>
+            <button
+              className="px-3 py-2 bg-sky-600 rounded text-sm font-semibold hover:bg-sky-500 disabled:opacity-50"
+              onClick={copyToken}
+              disabled={!token}
+            >
+              {copied ? "Copiado" : "Copiar"}
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
