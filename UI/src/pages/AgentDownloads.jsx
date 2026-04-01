@@ -1,10 +1,13 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import api from "../lib/api";
 
 export default function AgentDownloads() {
   const params = useParams();
   const tenantId = params.tenantId || params.tenantID || "";
-  const token = tenantId || "TOKEN-NAO-DEFINIDO";
+  const [token, setToken] = useState("");
+  const [tokenLoading, setTokenLoading] = useState(false);
+  const [tokenError, setTokenError] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const downloads = useMemo(
@@ -17,6 +20,17 @@ export default function AgentDownloads() {
     ],
     []
   );
+
+  useEffect(() => {
+    if (!tenantId) return;
+    setTokenLoading(true);
+    setTokenError(false);
+    api
+      .post(`/api/v1/tenants/${tenantId}/activation-token`)
+      .then((r) => setToken(r.data?.token || ""))
+      .catch(() => setTokenError(true))
+      .finally(() => setTokenLoading(false));
+  }, [tenantId]);
 
   async function copyToken() {
     try {
@@ -58,11 +72,18 @@ export default function AgentDownloads() {
 
         <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="text-sm">
-            Seu Token de Ativação: <span className="font-mono text-slate-100">{token}</span>
+            Token de Ativação:
+            <span className="font-mono text-slate-100 ml-2">
+              {tokenLoading ? "gerando..." : token || "indisponível"}
+            </span>
+            {tokenError && (
+              <span className="ml-2 text-xs text-amber-300">falha ao gerar</span>
+            )}
           </div>
           <button
-            className="px-3 py-2 bg-sky-600 rounded text-sm font-semibold hover:bg-sky-500"
+            className="px-3 py-2 bg-sky-600 rounded text-sm font-semibold hover:bg-sky-500 disabled:opacity-50"
             onClick={copyToken}
+            disabled={!token}
           >
             {copied ? "Copiado" : "Copiar"}
           </button>
@@ -107,4 +128,3 @@ export default function AgentDownloads() {
     </div>
   );
 }
-

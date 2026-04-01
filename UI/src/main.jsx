@@ -22,6 +22,9 @@ import Sessions from "./pages/Sessions";
 import CreateTenant from "./pages/CreateTenant";
 import TelemetryTest from "./pages/TelemetryTest";
 import AgentDownloads from "./pages/AgentDownloads";
+import Reports from "./pages/Reports";
+import Inventory from "./pages/Inventory";
+import Support from "./pages/Support";
 
 const wrap = (page) => (
   <ProtectedRoute>
@@ -48,7 +51,10 @@ const router = createBrowserRouter([
   { path: "/tenant/:tenantID/neural", element: wrap(<CustomerNeural />) },
   { path: "/tenant/:tenantID/users", element: wrap(<TenantUsers />) },
   { path: "/tenant/:tenantID/alerts", element: wrap(<Alerts />) },
-  { path: "/tenant/:tenantID/downloads", element: wrap(<AgentDownloads />) }
+  { path: "/tenant/:tenantID/downloads", element: wrap(<AgentDownloads />) },
+  { path: "/tenant/:tenantID/reports", element: wrap(<Reports />) },
+  { path: "/tenant/:tenantID/inventory", element: wrap(<Inventory />) },
+  { path: "/tenant/:tenantID/support", element: wrap(<Support />) }
 ]);
 
 createRoot(document.getElementById("root")).render(

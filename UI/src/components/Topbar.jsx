@@ -140,11 +140,8 @@ export default function Topbar() {
                   <NavItem to={`/tenant/${tenantId}#topologia`} label="Mapa de Topologia" onClick={closeAll} />
 
                   <div className="text-xs uppercase tracking-wider text-slate-500 pt-3">Análise</div>
-                  <NavItem to="#" label="Relatórios Executivo" disabled />
-                  <NavItem to="#" label="SLA & Disponibilidade" disabled />
-                  <NavItem to="#" label="KPIs de Performance" disabled />
-                  <NavItem to="#" label="Consumo & Billing" disabled />
-                  <NavItem to="#" label="Inventário" disabled />
+                  <NavItem to={`/tenant/${tenantId}/reports`} label="Relatórios" onClick={closeAll} />
+                  <NavItem to={`/tenant/${tenantId}/inventory`} label="Inventário" onClick={closeAll} />
 
                   <div className="text-xs uppercase tracking-wider text-slate-500 pt-3">Gestão</div>
                   {isTenantOperator && tenantId && (
@@ -154,9 +151,7 @@ export default function Topbar() {
                   <NavItem to={`/tenant/${tenantId}#discovery`} label="Descoberta (Scan)" onClick={closeAll} />
 
                   <div className="text-xs uppercase tracking-wider text-slate-500 pt-3">Suporte</div>
-                  <NavItem to="#" label="Central de Alertas" disabled />
-                  <NavItem to="#" label="Base de Conhecimento" disabled />
-                  <NavItem to="#" label="Suporte & Tickets" disabled />
+                  <NavItem to={`/tenant/${tenantId}/support`} label="Suporte & Tickets" onClick={closeAll} />
                 </>
               )}
             </div>

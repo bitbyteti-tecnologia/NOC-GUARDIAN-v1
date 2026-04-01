@@ -13,6 +13,7 @@ import RecommendationsCard from "../components/dashboard/RecommendationsCard";
 import IncidentDrawer from "../components/dashboard/IncidentDrawer";
 import TopologyCard from "../components/dashboard/TopologyCard";
 import TopServicesCard from "../components/dashboard/TopServicesCard";
+import ActiveAlertsCard from "../components/dashboard/ActiveAlertsCard";
 import useMe from "../hooks/useMe";
 
 function fmtDate(iso) {
@@ -479,6 +480,7 @@ export default function Customer() {
           <IncidentsCard items={intel?.top_incidents || []} loading={intelLoading} error={intelError} onSelect={openIncident} />
           <InsightsCard items={intel?.insights || []} loading={intelLoading} error={intelError} />
           <RecommendationsCard items={intel?.recommendations || []} loading={intelLoading} error={intelError} />
+          <ActiveAlertsCard tenantId={tenantId} />
         </div>
       </div>
 

@@ -51,6 +51,7 @@ func Run() {
 	r.Handle("/api/v1/tenants", RequireAuth(RequireRole("superadmin", "support")(http.HandlerFunc(CreateTenantHandler)))).Methods("POST")
 	r.Handle("/api/v1/tenants", RequireAuth(RequireRole("superadmin", "support")(http.HandlerFunc(ListTenantsHandler)))).Methods("GET")
 	r.Handle("/api/v1/tenants/{tenantID}", RequireAuth(RequireRole("superadmin", "support")(http.HandlerFunc(GetTenantInfoHandler)))).Methods("GET")
+	r.Handle("/api/v1/tenants/{tenantID}/activation-token", RequireAuth(RequireRole("superadmin", "support", "admin")(http.HandlerFunc(ActivationTokenHandler)))).Methods("POST")
 	r.Handle("/api/v1/tenants/{tenantID}/discovery", RequireAuth(RequireRole("superadmin", "support", "admin")(http.HandlerFunc(TenantDiscoveryHandler)))).Methods("POST")
 	r.Handle("/api/v1/discovery/run", RequireAuth(RequireRole("superadmin", "support", "admin")(http.HandlerFunc(DiscoveryRunHandler)))).Methods("POST")
 
