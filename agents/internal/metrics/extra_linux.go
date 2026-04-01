@@ -89,6 +89,17 @@ func ExtraMetrics(diskPath string, services []string, pingTargets []string, topN
 		}
 	}
 
+	// Top serviços por CPU/Mem (systemd MainPID)
+	topSvcCPU, topSvcMem := topServicesLinux(topN)
+	for i, s := range topSvcCPU {
+		key := sanitizeMetricKey(s.Name)
+		out[fmt.Sprintf("service_cpu_top%d_%s_pct", i+1, key)] = s.CPU
+	}
+	for i, s := range topSvcMem {
+		key := sanitizeMetricKey(s.Name)
+		out[fmt.Sprintf("service_mem_top%d_%s_bytes", i+1, key)] = float64(s.MemBytes)
+	}
+
 	// Ping (latência e perda)
 	for _, tgt := range pingTargets {
 		avgMs, lossPct := pingLinux(tgt)
@@ -214,6 +225,95 @@ func processUsageByName(name string) (float64, float64) {
 		return -1, -1
 	}
 	return cpuSum, memSum
+}
+
+type svcStat struct {
+	Name     string
+	CPU      float64
+	MemBytes uint64
+}
+
+func topServicesLinux(n int) ([]svcStat, []svcStat) {
+	if n <= 0 {
+		return nil, nil
+	}
+
+	units := listRunningServices()
+	if len(units) == 0 {
+		return nil, nil
+	}
+
+	var items []svcStat
+	for _, unit := range units {
+		pid := systemdMainPID(unit)
+		if pid <= 0 {
+			continue
+		}
+		p, err := process.NewProcess(int32(pid))
+		if err != nil {
+			continue
+		}
+		cpuPct, _ := p.CPUPercent()
+		memInfo, _ := p.MemoryInfo()
+		var memBytes uint64
+		if memInfo != nil {
+			memBytes = memInfo.RSS
+		}
+		name := strings.TrimSuffix(unit, ".service")
+		items = append(items, svcStat{Name: name, CPU: cpuPct, MemBytes: memBytes})
+	}
+
+	byCPU := append([]svcStat(nil), items...)
+	sort.Slice(byCPU, func(i, j int) bool { return byCPU[i].CPU > byCPU[j].CPU })
+	if len(byCPU) > n {
+		byCPU = byCPU[:n]
+	}
+
+	byMem := append([]svcStat(nil), items...)
+	sort.Slice(byMem, func(i, j int) bool { return byMem[i].MemBytes > byMem[j].MemBytes })
+	if len(byMem) > n {
+		byMem = byMem[:n]
+	}
+
+	return byCPU, byMem
+}
+
+func listRunningServices() []string {
+	cmd := exec.Command("systemctl", "list-units", "--type=service", "--state=running", "--no-legend", "--no-pager")
+	out, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+	lines := strings.Split(string(out), "\n")
+	var units []string
+	for _, ln := range lines {
+		fields := strings.Fields(ln)
+		if len(fields) == 0 {
+			continue
+		}
+		unit := fields[0]
+		if strings.HasSuffix(unit, ".service") {
+			units = append(units, unit)
+		}
+		if len(units) >= 100 {
+			break
+		}
+	}
+	return units
+}
+
+func systemdMainPID(unit string) int {
+	cmd := exec.Command("systemctl", "show", "-p", "MainPID", "--value", unit)
+	out, err := cmd.Output()
+	if err != nil {
+		return 0
+	}
+	v := strings.TrimSpace(string(out))
+	if v == "" {
+		return 0
+	}
+	pid, _ := strconv.Atoi(v)
+	return pid
 }
 
 func pingLinux(target string) (avgMs float64, lossPct float64) {

@@ -33,6 +33,10 @@ func NewEngine(cfg config.Config, store *db.Store, eventsRepo *Repository, alert
 	rules := []Rule{
 		{MetricName: "cpu_usage", Threshold: cfg.CPUThreshold, Severity: "critical", EventType: "cpu_high", Message: "CPU usage above threshold"},
 		{MetricName: "memory_usage", Threshold: cfg.MemoryThreshold, Severity: "warning", EventType: "memory_high", Message: "Memory usage above threshold"},
+		{MetricName: "cpu_percent", Threshold: cfg.CPUThreshold, Severity: "critical", EventType: "cpu_high", Message: "CPU usage above threshold"},
+		{MetricName: "mem_used_pct", Threshold: cfg.MemoryThreshold, Severity: "warning", EventType: "memory_high", Message: "Memory usage above threshold"},
+		{MetricName: "disk_used_pct", Threshold: 90, Severity: "warning", EventType: "disk_high", Message: "Disk usage above threshold"},
+		{MetricName: "updates_pending", Threshold: 0, Severity: "warning", EventType: "updates_pending", Message: "Updates pending"},
 	}
 	return &Engine{
 		cfg:      cfg,

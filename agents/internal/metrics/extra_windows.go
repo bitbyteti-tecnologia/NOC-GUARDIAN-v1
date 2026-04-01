@@ -78,6 +78,17 @@ func ExtraMetrics(diskPath string, services []string, pingTargets []string, topN
 		out["service_"+key+"_status"] = boolToFloat(status)
 	}
 
+	// Top serviços por CPU/Mem
+	topSvcCPU, topSvcMem := topServicesWindows(topN)
+	for i, s := range topSvcCPU {
+		key := sanitizeMetricKey(s.Name)
+		out[fmt.Sprintf("service_cpu_top%d_%s_pct", i+1, key)] = s.CPU
+	}
+	for i, s := range topSvcMem {
+		key := sanitizeMetricKey(s.Name)
+		out[fmt.Sprintf("service_mem_top%d_%s_bytes", i+1, key)] = float64(s.MemBytes)
+	}
+
 	// Ping
 	for _, tgt := range pingTargets {
 		avgMs, lossPct := pingWindows(tgt)
@@ -134,6 +145,113 @@ func topProcessesWindows(n int) ([]procStatWin, []procStatWin) {
 		byMem = byMem[:n]
 	}
 	return byCPU, byMem
+}
+
+type svcStatWin struct {
+	Name     string
+	PID      int32
+	CPU      float64
+	MemBytes uint64
+}
+
+func topServicesWindows(n int) ([]svcStatWin, []svcStatWin) {
+	if n <= 0 {
+		return nil, nil
+	}
+	services := listRunningServicesWindows()
+	if len(services) == 0 {
+		return nil, nil
+	}
+
+	var items []svcStatWin
+	for _, s := range services {
+		if s.PID <= 0 {
+			continue
+		}
+		p, err := process.NewProcess(s.PID)
+		if err != nil {
+			continue
+		}
+		cpuPct, _ := p.CPUPercent()
+		memInfo, _ := p.MemoryInfo()
+		var memBytes uint64
+		if memInfo != nil {
+			memBytes = memInfo.RSS
+		}
+		items = append(items, svcStatWin{Name: s.Name, PID: s.PID, CPU: cpuPct, MemBytes: memBytes})
+	}
+
+	byCPU := append([]svcStatWin(nil), items...)
+	sort.Slice(byCPU, func(i, j int) bool { return byCPU[i].CPU > byCPU[j].CPU })
+	if len(byCPU) > n {
+		byCPU = byCPU[:n]
+	}
+
+	byMem := append([]svcStatWin(nil), items...)
+	sort.Slice(byMem, func(i, j int) bool { return byMem[i].MemBytes > byMem[j].MemBytes })
+	if len(byMem) > n {
+		byMem = byMem[:n]
+	}
+
+	return byCPU, byMem
+}
+
+func listRunningServicesWindows() []svcStatWin {
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_Service | where {$_.State -eq 'Running' -and $_.ProcessId -ne 0} | select Name,ProcessId | ConvertTo-Csv -NoTypeInformation")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if len(lines) <= 1 {
+		return nil
+	}
+
+	var services []svcStatWin
+	for _, ln := range lines[1:] { // skip header
+		ln = strings.TrimSpace(ln)
+		if ln == "" {
+			continue
+		}
+		// CSV: "Name","ProcessId"
+		parts := splitCSVLine(ln)
+		if len(parts) < 2 {
+			continue
+		}
+		name := strings.Trim(parts[0], `"`)
+		pidStr := strings.Trim(parts[1], `"`)
+		pid64, _ := strconv.ParseInt(pidStr, 10, 32)
+		if pid64 <= 0 {
+			continue
+		}
+		services = append(services, svcStatWin{Name: name, PID: int32(pid64)})
+		if len(services) >= 200 {
+			break
+		}
+	}
+	return services
+}
+
+func splitCSVLine(line string) []string {
+	var out []string
+	var buf strings.Builder
+	inQuotes := false
+	for i := 0; i < len(line); i++ {
+		ch := line[i]
+		if ch == '"' {
+			inQuotes = !inQuotes
+			continue
+		}
+		if ch == ',' && !inQuotes {
+			out = append(out, buf.String())
+			buf.Reset()
+			continue
+		}
+		buf.WriteByte(ch)
+	}
+	out = append(out, buf.String())
+	return out
 }
 
 func serviceStatusWindows(name string) bool {
