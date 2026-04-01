@@ -241,7 +241,7 @@ func fallbackNetDiskBps() (float64, float64, float64, float64) {
 }
 
 func netAdapterBps() (float64, float64) {
-	ps := findPowerShellWin()
+	ps := findPowerShellWinNet()
 	cmd := exec.Command(ps, "-NoProfile", "-Command",
 		"@{rx=(Get-NetAdapterStatistics | Measure-Object -Property ReceivedBytes -Sum).Sum; tx=(Get-NetAdapterStatistics | Measure-Object -Property SentBytes -Sum).Sum} | ConvertTo-Json -Compress",
 	)
@@ -287,7 +287,7 @@ func netAdapterBps() (float64, float64) {
 }
 
 func diskIoBps() (float64, float64) {
-	ps := findPowerShellWin()
+	ps := findPowerShellWinNet()
 	cmd := exec.Command(ps, "-NoProfile", "-Command",
 		"Get-CimInstance Win32_PerfRawData_PerfDisk_LogicalDisk | Where-Object { $_.Name -eq '_Total' } | Select-Object -Property DiskReadBytesPerSec,DiskWriteBytesPerSec | ConvertTo-Json -Compress",
 	)
@@ -326,7 +326,7 @@ func bytesTrim(b []byte) []byte {
 	return []byte(strings.TrimSpace(string(b)))
 }
 
-func findPowerShellWin() string {
+func findPowerShellWinNet() string {
 	candidates := []string{
 		`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`,
 		`C:\Windows\Sysnative\WindowsPowerShell\v1.0\powershell.exe`,
