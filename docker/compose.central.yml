@@ -43,7 +43,7 @@ services:
 
   ui:
     build:
-      context: ../ui
+      context: ../UI
       dockerfile: deploy/Dockerfile.prod
     restart: unless-stopped
     networks:
