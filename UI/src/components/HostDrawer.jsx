@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { TelemetryDashboard } from "../features/telemetry/TelemetryDashboard";
 import { useTelemetryFromApi } from "../features/telemetry/integrations/useTelemetryFromApi";
 import { buildHostHealthSummary, computeHostSeverity, severityBadgeClasses, severityLabel } from "../features/telemetry/health";
+import TopServicesCard from "./dashboard/TopServicesCard";
 
 function Badge({ status }) {
   const ok = status === "ONLINE";
@@ -212,6 +213,11 @@ export default function HostDrawer({
           </select>
         </div>
         <TelemetryDashboard vm={telemetryVM} />
+      </div>
+
+      {/* Top services dentro do Host Overview */}
+      <div className="mt-4">
+        <TopServicesCard tenantId={tenantId} hostname={hostname} />
       </div>
     </div>
   );

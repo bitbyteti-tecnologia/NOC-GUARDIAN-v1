@@ -12,7 +12,6 @@ import InsightsCard from "../components/dashboard/InsightsCard";
 import RecommendationsCard from "../components/dashboard/RecommendationsCard";
 import IncidentDrawer from "../components/dashboard/IncidentDrawer";
 import TopologyCard from "../components/dashboard/TopologyCard";
-import TopServicesCard from "../components/dashboard/TopServicesCard";
 import ActiveAlertsCard from "../components/dashboard/ActiveAlertsCard";
 import useMe from "../hooks/useMe";
 
@@ -528,8 +527,6 @@ export default function Customer() {
       </div>
 
       {/* Top serviços do host (CPU/Mem) */}
-      <TopServicesCard tenantId={tenantId} hostname={tenantTelemetryHost?.hostname || ""} />
-
       <IncidentDrawer
         open={incidentOpen}
         onClose={() => setIncidentOpen(false)}
