@@ -125,7 +125,7 @@ Vulnerabilidades: Correlação de ativos com bases de CVEs conhecidas.
 📊 Interface NOC & Dashboard Customizável
 A interface do usuário é projetada para fornecer clareza imediata e capacidade de resposta rápida.
 
-Recursos Principais da UI
+### Recursos Principais da UI
 Visão Multi-Tenant: Isolamento visual completo entre clientes.
 
 KPIs em Tempo Real: Métricas críticas atualizadas via WebSocket.
@@ -211,6 +211,7 @@ noc-guardian/
 ├─ infra/           # compose, nginx, hardening, pki
 ├─ README.md        # Guia principal
 └─ Makefile        # Atalhos (build/run/test)
+
 📜 Regra de Ouro
 Todo código do NOC-Guardian é educacional, extensivamente documentado e comentado linha por linha. Isso garante transparência total, facilita a manutenção e permite a evolução segura da plataforma por equipes de desenvolvimento e segurança.
 
@@ -229,7 +230,7 @@ Análise de Comportamento (UEBA): Usar IA para detectar anomalias no comportamen
 
 Segurança de Supply Chain: Implementar assinatura de imagens Docker e SBOM (Software Bill of Materials) para todos os componentes.
 
-###Compliance para o Cliente
+### Compliance para o Cliente
 
 ISO 27001: O isolamento de dados por banco e a sanitização automática facilitam a auditoria para a certificação ISO 27001 do cliente.
 
