@@ -375,7 +375,7 @@ export default function Customer() {
       </div>
 
       {/* Discovery manual para clientes existentes */}
-      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+      <div id="discovery" className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <div className="font-semibold text-slate-100">Discovery de Rede</div>
@@ -483,7 +483,7 @@ export default function Customer() {
       </div>
 
       {/* Topologia do cliente */}
-      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+      <div id="topologia" className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <div className="font-semibold text-slate-100">Topologia</div>

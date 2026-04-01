@@ -21,6 +21,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Sessions from "./pages/Sessions";
 import CreateTenant from "./pages/CreateTenant";
 import TelemetryTest from "./pages/TelemetryTest";
+import AgentDownloads from "./pages/AgentDownloads";
 
 const wrap = (page) => (
   <ProtectedRoute>
@@ -46,7 +47,8 @@ const router = createBrowserRouter([
   { path: "/tenant/:tenantID", element: wrap(<Customer />) },
   { path: "/tenant/:tenantID/neural", element: wrap(<CustomerNeural />) },
   { path: "/tenant/:tenantID/users", element: wrap(<TenantUsers />) },
-  { path: "/tenant/:tenantID/alerts", element: wrap(<Alerts />) }
+  { path: "/tenant/:tenantID/alerts", element: wrap(<Alerts />) },
+  { path: "/tenant/:tenantID/downloads", element: wrap(<AgentDownloads />) }
 ]);
 
 createRoot(document.getElementById("root")).render(

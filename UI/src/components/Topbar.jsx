@@ -4,9 +4,16 @@ import useMe from "../hooks/useMe";
 import useSessionAge from "../hooks/useSessionAge";
 import LogoutButton from "./LogoutButton";
 
-function NavItem({ to, label, onClick }) {
+function NavItem({ to, label, onClick, disabled }) {
   const { pathname } = useLocation();
   const active = pathname === to;
+  if (disabled) {
+    return (
+      <div className="block px-3 py-2 rounded-lg text-sm text-slate-500 cursor-not-allowed">
+        {label}
+      </div>
+    );
+  }
   return (
     <Link
       to={to}
@@ -28,6 +35,7 @@ export default function Topbar() {
     return m ? m[1] : "";
   }, [pathname]);
   const isTenantOperator = me && me.role === "admin" && me.tenant_id === tenantId;
+  const isTenantView = Boolean(tenantId);
 
   const [open, setOpen] = useState(false);
   const [cfgOpen, setCfgOpen] = useState(false);
@@ -108,18 +116,49 @@ export default function Topbar() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-              <div className="text-xs uppercase tracking-wider text-slate-500">Navegação</div>
-              <NavItem to="/" label="Dashboard" onClick={closeAll} />
+              {!isTenantView && (
+                <>
+                  <div className="text-xs uppercase tracking-wider text-slate-500">Navegação</div>
+                  <NavItem to="/" label="Dashboard" onClick={closeAll} />
 
-              <div className="text-xs uppercase tracking-wider text-slate-500 pt-3">Configurações</div>
-              <NavItem to="/sessions" label="Sessões" onClick={closeAll} />
-              {isGlobalAdmin && <NavItem to="/users" label="Usuários Globais" onClick={closeAll} />}
-              {isGlobalAdmin && <NavItem to="/create-tenant" label="Criar novo cliente" onClick={closeAll} />}
-              {isTenantOperator && tenantId && (
-                <NavItem to={`/tenant/${tenantId}/users`} label="Usuários do Cliente" onClick={closeAll} />
+                  <div className="text-xs uppercase tracking-wider text-slate-500 pt-3">Configurações</div>
+                  <NavItem to="/sessions" label="Sessões" onClick={closeAll} />
+                  {isGlobalAdmin && <NavItem to="/users" label="Usuários Globais" onClick={closeAll} />}
+                  {isGlobalAdmin && <NavItem to="/create-tenant" label="Criar novo cliente" onClick={closeAll} />}
+                  {isTenantOperator && tenantId && (
+                    <NavItem to={`/tenant/${tenantId}/users`} label="Usuários do Cliente" onClick={closeAll} />
+                  )}
+                  <NavItem to="/change-password" label="Alterar senha" onClick={closeAll} />
+                </>
               )}
-              <NavItem to="/change-password" label="Alterar senha" onClick={closeAll} />
 
+              {isTenantView && (
+                <>
+                  <div className="text-xs uppercase tracking-wider text-slate-500">Monitoramento</div>
+                  <NavItem to={`/tenant/${tenantId}`} label="Dashboard" onClick={closeAll} />
+                  <NavItem to={`/tenant/${tenantId}/alerts`} label="Alertas Ativos" onClick={closeAll} />
+                  <NavItem to={`/tenant/${tenantId}#topologia`} label="Mapa de Topologia" onClick={closeAll} />
+
+                  <div className="text-xs uppercase tracking-wider text-slate-500 pt-3">Análise</div>
+                  <NavItem to="#" label="Relatórios Executivo" disabled />
+                  <NavItem to="#" label="SLA & Disponibilidade" disabled />
+                  <NavItem to="#" label="KPIs de Performance" disabled />
+                  <NavItem to="#" label="Consumo & Billing" disabled />
+                  <NavItem to="#" label="Inventário" disabled />
+
+                  <div className="text-xs uppercase tracking-wider text-slate-500 pt-3">Gestão</div>
+                  {isTenantOperator && tenantId && (
+                    <NavItem to={`/tenant/${tenantId}/users`} label="Gestão de Acessos" onClick={closeAll} />
+                  )}
+                  <NavItem to={`/tenant/${tenantId}/downloads`} label="Downloads & Instalação" onClick={closeAll} />
+                  <NavItem to={`/tenant/${tenantId}#discovery`} label="Descoberta (Scan)" onClick={closeAll} />
+
+                  <div className="text-xs uppercase tracking-wider text-slate-500 pt-3">Suporte</div>
+                  <NavItem to="#" label="Central de Alertas" disabled />
+                  <NavItem to="#" label="Base de Conhecimento" disabled />
+                  <NavItem to="#" label="Suporte & Tickets" disabled />
+                </>
+              )}
             </div>
 
             <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-300">
