@@ -33,6 +33,7 @@ services:
       - SNMP_CRED_KEY=${SNMP_CRED_KEY}
     build:
       context: ../central
+      dockerfile: deploy/Dockerfile
     depends_on:
       db:
         condition: service_healthy
@@ -42,8 +43,8 @@ services:
 
   ui:
     build:
-      context: ../UI
-      dockerfile: Dockerfile.prod
+      context: ../ui
+      dockerfile: deploy/Dockerfile.prod
     restart: unless-stopped
     networks:
       - nocnet

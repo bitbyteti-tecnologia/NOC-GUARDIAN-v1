@@ -10,6 +10,7 @@ import AppLayout from "./components/AppLayout";
 
 import Tenants from "./pages/Tenants";
 import Customer from "./pages/Customer";
+import CustomerNeural from "./pages/CustomerNeural";
 import Alerts from "./pages/Alerts";
 import Login from "./pages/Login";
 import GlobalUsers from "./pages/GlobalUsers";
@@ -43,6 +44,7 @@ const router = createBrowserRouter([
   { path: "/telemetry-test", element: wrap(<TelemetryTest />) },
 
   { path: "/tenant/:tenantID", element: wrap(<Customer />) },
+  { path: "/tenant/:tenantID/neural", element: wrap(<CustomerNeural />) },
   { path: "/tenant/:tenantID/users", element: wrap(<TenantUsers />) },
   { path: "/tenant/:tenantID/alerts", element: wrap(<Alerts />) }
 ]);

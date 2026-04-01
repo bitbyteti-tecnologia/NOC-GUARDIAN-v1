@@ -1,19 +1,18 @@
 # Go binaries
 central/central
-agent/nocguardian-agent
+agents/nocguardian-agent
 *.exe
 
 # Environment files
 .env
 central/.env
-agent/.env
 agents/.env
 
 # Node.js
 node_modules/
-UI/node_modules/
+ui/node_modules/
 dist/
-UI/dist/
+ui/dist/
 
 # SQL Dumps
 *.sql
@@ -29,6 +28,6 @@ Thumbs.db
 alert_key
 hostname
 linux_hosts.txt
-agent/packaging/windows-msi/*.wixobj
-agent/packaging/windows-msi/*.wixpdb
-agent/packaging/windows-msi/*.msi
+agents/deploy/windows-msi/*.wixobj
+agents/deploy/windows-msi/*.wixpdb
+agents/deploy/windows-msi/*.msi

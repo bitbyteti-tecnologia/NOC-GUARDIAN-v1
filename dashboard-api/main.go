@@ -19,6 +19,7 @@ import (
 	"dashboard-api/internal/dashboard"
 	"dashboard-api/internal/incidents"
 	"dashboard-api/internal/intelligence"
+	"dashboard-api/internal/neural"
 	"dashboard-api/internal/topology"
 )
 
@@ -199,6 +200,25 @@ func main() {
 	}
 	intelligence.RegisterRoutes(r, intSvc, writeJSON)
 	r.Get("/api/v1/dashboard/intelligence", intelligence.IntelligenceHandler(intSvc, writeJSON))
+
+	neuralSvc := &neural.Service{
+		OpenTenant: func(ctx context.Context, tenantID string) (*sql.DB, string, error) {
+			return openTenant(ctx, cfg, tenantID)
+		},
+		LogPrefix:     "[neural] ",
+		EnforceTenant: cfg.EnforceTenant,
+		Intelligence:  intSvc,
+	}
+	// reusa topologia quando disponível
+	neuralSvc.Topology = &topology.Service{
+		OpenTenant: func(ctx context.Context, tenantID string) (*sql.DB, string, error) {
+			return openTenant(ctx, cfg, tenantID)
+		},
+		LogPrefix:     "[topology] ",
+		EnforceTenant: cfg.EnforceTenant,
+	}
+	neural.RegisterRoutes(r, neuralSvc, writeJSON)
+	r.Get("/api/v1/dashboard/neural", neural.NeuralHandler(neuralSvc, writeJSON))
 
 	incSvc := &incidents.Service{
 		OpenTenant: func(ctx context.Context, tenantID string) (*sql.DB, string, error) {

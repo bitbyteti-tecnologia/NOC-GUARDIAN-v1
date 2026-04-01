@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../lib/api";
 import HostDrawer from "../components/HostDrawer";
 import { computeHostSeverity } from "../features/telemetry/health";
@@ -318,6 +318,17 @@ export default function Customer() {
           </div>
           <div className="text-xs text-slate-400 mt-1">
             Último heartbeat: <span className="text-slate-200">{fmtDate(lastHeartbeat)}</span>
+          </div>
+          <div className="mt-3 inline-flex rounded-full border border-slate-700 bg-slate-900/50 p-1 text-xs">
+            <span className="rounded-full px-3 py-1 bg-sky-600 text-white font-semibold">
+              Padrão
+            </span>
+            <Link
+              to={`/tenant/${tenantId}/neural`}
+              className="rounded-full px-3 py-1 text-slate-300 hover:text-slate-100"
+            >
+              Neural
+            </Link>
           </div>
         </div>
 
