@@ -125,10 +125,16 @@ CREATE TABLE IF NOT EXISTS api_keys (
   tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   key_prefix TEXT NOT NULL,
   key_hash TEXT NOT NULL,
+  key_enc TEXT,
   name TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
-  last_used_at TIMESTAMPTZ
+  last_used_at TIMESTAMPTZ,
+  revoked_at TIMESTAMPTZ
 );
+ALTER TABLE api_keys
+  ADD COLUMN IF NOT EXISTS key_enc TEXT;
+ALTER TABLE api_keys
+  ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ;
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_ak_tenant') THEN
@@ -139,6 +145,12 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_ak_prefix') THEN
     CREATE INDEX idx_ak_prefix ON api_keys(key_prefix);
+  END IF;
+END$$;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_ak_tenant_name') THEN
+    CREATE INDEX idx_ak_tenant_name ON api_keys(tenant_id, name);
   END IF;
 END$$;
 `

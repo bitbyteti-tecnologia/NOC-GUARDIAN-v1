@@ -22,7 +22,7 @@ func ValidateApiKey(ctx context.Context, tenantID, key string) error {
 
 	var keyHash string
 	err := MasterConn.QueryRow(ctx,
-		"SELECT key_hash FROM api_keys WHERE tenant_id=$1 AND key_prefix=$2",
+		"SELECT key_hash FROM api_keys WHERE tenant_id=$1 AND key_prefix=$2 AND revoked_at IS NULL",
 		tenantID, prefix).Scan(&keyHash)
 	if err != nil {
 		return errors.New("chave não encontrada")
@@ -35,7 +35,7 @@ func ValidateApiKey(ctx context.Context, tenantID, key string) error {
 	}
 
 	// Atualiza último uso
-	_, _ = MasterConn.Exec(ctx, "UPDATE api_keys SET last_used_at=now() WHERE key_prefix=$1", prefix)
+	_, _ = MasterConn.Exec(ctx, "UPDATE api_keys SET last_used_at=now() WHERE key_prefix=$1 AND revoked_at IS NULL", prefix)
 	return nil
 }
 
