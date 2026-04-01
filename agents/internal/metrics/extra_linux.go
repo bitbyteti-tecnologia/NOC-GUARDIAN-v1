@@ -230,7 +230,9 @@ func topServicesLinux(n int) ([]svcStat, []svcStat) {
 
 	units := listRunningServices()
 	if len(units) == 0 {
-		return nil, nil
+		// Fallback: use top processes when systemd is not available
+		topCPU, topMem := topProcesses(n)
+		return convertProcToSvc(topCPU), convertProcToSvc(topMem)
 	}
 
 	var items []svcStat
@@ -469,4 +471,19 @@ func journalErrorCount() int {
 		count++
 	}
 	return count
+}
+
+func convertProcToSvc(items []procStat) []svcStat {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]svcStat, 0, len(items))
+	for _, p := range items {
+		out = append(out, svcStat{
+			Name:     p.Name,
+			CPU:      p.CPU,
+			MemBytes: p.MemBytes,
+		})
+	}
+	return out
 }

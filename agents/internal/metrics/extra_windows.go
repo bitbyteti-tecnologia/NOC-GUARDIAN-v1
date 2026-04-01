@@ -5,6 +5,7 @@ package metrics
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"sort"
 	"strconv"
@@ -160,7 +161,9 @@ func topServicesWindows(n int) ([]svcStatWin, []svcStatWin) {
 	}
 	services := listRunningServicesWindows()
 	if len(services) == 0 {
-		return nil, nil
+		// Fallback: use top processes to avoid empty Top Services
+		topCPU, topMem := topProcessesWindows(n)
+		return convertProcToSvc(topCPU), convertProcToSvc(topMem)
 	}
 
 	var items []svcStatWin
@@ -197,7 +200,8 @@ func topServicesWindows(n int) ([]svcStatWin, []svcStatWin) {
 }
 
 func listRunningServicesWindows() []svcStatWin {
-	cmd := exec.Command("powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_Service | where {$_.State -eq 'Running' -and $_.ProcessId -ne 0} | select Name,ProcessId | ConvertTo-Csv -NoTypeInformation")
+	ps := findPowerShell()
+	cmd := exec.Command(ps, "-NoProfile", "-Command", "Get-CimInstance Win32_Service | where {$_.State -eq 'Running' -and $_.ProcessId -ne 0} | select Name,ProcessId | ConvertTo-Csv -NoTypeInformation")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil
@@ -231,6 +235,46 @@ func listRunningServicesWindows() []svcStatWin {
 		}
 	}
 	return services
+}
+
+func findPowerShell() string {
+	candidates := []string{
+		`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`,
+		`C:\Windows\Sysnative\WindowsPowerShell\v1.0\powershell.exe`,
+		`C:\Windows\System32\WindowsPowerShell\v1.0\powershell`,
+		`powershell.exe`,
+		`powershell`,
+		`pwsh.exe`,
+		`pwsh`,
+	}
+	for _, c := range candidates {
+		if strings.Contains(c, `C:\`) {
+			if _, err := os.Stat(c); err == nil {
+				return c
+			}
+			continue
+		}
+		if p, err := exec.LookPath(c); err == nil {
+			return p
+		}
+	}
+	return "powershell"
+}
+
+func convertProcToSvc(items []procStatWin) []svcStatWin {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]svcStatWin, 0, len(items))
+	for _, p := range items {
+		out = append(out, svcStatWin{
+			Name:     p.Name,
+			PID:      0,
+			CPU:      p.CPU,
+			MemBytes: p.MemBytes,
+		})
+	}
+	return out
 }
 
 func splitCSVLine(line string) []string {
